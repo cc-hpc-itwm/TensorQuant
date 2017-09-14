@@ -31,7 +31,7 @@ from nets import nets_factory
 from preprocessing import preprocessing_factory
 from tensorflow.python.client import device_lib
 
-sys.path.append('../TensorLib')
+#sys.path.append('../Quantize')
 from Quantize import QConv
 from Quantize import QFullyConnect
 from Quantize import QBatchNorm
@@ -117,35 +117,12 @@ tf.app.flags.DEFINE_string(
 
 FLAGS = tf.app.flags.FLAGS
 
-def quantizer_selector(selector_str, **kwargs):
-    quantizer=None
-    if selector_str=="zero":
-        quantizer = Quantizers.FixedPointQuantizer_zero(
-                                    kwargs['quant_width'], kwargs['quant_prec'])
-    elif selector_str=="down":
-        quantizer = Quantizers.FixedPointQuantizer_down(
-                                    kwargs['quant_width'], kwargs['quant_prec'])
-    elif selector_str=="nearest":
-        quantizer = Quantizers.FixedPointQuantizer_nearest(
-                                    kwargs['quant_width'], kwargs['quant_prec'])
-    elif selector_str=="stochastic":
-        quantizer = Quantizers.FixedPointQuantizer_stochastic(
-                                    kwargs['quant_width'], kwargs['quant_prec'])
-    else:
-        raise ValueError('Quantizer %s not recognized!'%(selector_str))
-    return quantizer        
-
-def get_available_gpus():
-    local_device_protos = device_lib.list_local_devices()
-    return [x.name for x in local_device_protos if x.device_type == 'GPU']
-
-
 
 def main(_):
   if not FLAGS.dataset_dir:
     raise ValueError('You must supply the dataset directory with --dataset_dir')
 
-  tf.logging.set_verbosity(tf.logging.WARN)
+  tf.logging.set_verbosity(tf.logging.WARN) #can be WARN or INFO
   #with tf.device(FLAGS.device):
   with tf.Graph().as_default():
     tf_global_step = slim.get_or_create_global_step()
@@ -185,7 +162,7 @@ def main(_):
         #intr_rounding = tokens[2]
         if intr_quant_width > intr_quant_prec and intr_quant_prec >= 0:
                 intr_q_map = dict.fromkeys( intr_q_layers,
-                                quantizer_selector(intr_rounding, 
+                                utils.quantizer_selector(intr_rounding, 
                                     quant_width=intr_quant_width, quant_prec=intr_quant_prec) )
         else:
             raise ValueError('Intrinsic Quantizer initialized with invalid values: (%d,%d)'
@@ -201,7 +178,7 @@ def main(_):
         extr_rounding = tokens[2]
         if extr_quant_width > extr_quant_prec and extr_quant_prec >= 0:
                 extr_q_map = dict.fromkeys( extr_q_layers,
-                                quantizer_selector(extr_rounding, 
+                                utils.quantizer_selector(extr_rounding, 
                                     quant_width=extr_quant_width, quant_prec=extr_quant_prec) )
         
         else:

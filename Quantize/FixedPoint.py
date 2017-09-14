@@ -38,11 +38,6 @@ def round_stochastic(input1, fixed_size, fixed_prec):
     result = round_module_stochastic.round_stochastic(input1,fixed_size=fixed_size,fixed_prec=fixed_prec)
     return result
 
-def trunc2(input1, kernel, fixed_size, fixed_prec):
-    ''' '''
-    result = fixedconv_module.fixed_conv(input1, kernel, fixed_size=fixed_size,fixed_prec=fixed_prec)
-    return result
-
 def toFixed(fp_number, fixed_size, fixed_prec):
     ''' Turns the elements of a floating point numpy matrix into fixed point equivalents with bitwidth fixed_size and fractional bits fixed_prec.'''
     fixed_max_signed = (2.0**(fixed_size-1)-1)/(2**fixed_prec)  # maximum value of fixed representation

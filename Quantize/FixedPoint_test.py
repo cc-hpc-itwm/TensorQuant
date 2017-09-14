@@ -1,7 +1,5 @@
 import tensorflow as tf
 import numpy as np
-import sys
-sys.path.append('../../TensorLib')
 import Quantizers
 import FixedPoint as FP
 
@@ -30,16 +28,16 @@ inputs_vals = np.random.normal(size=(batch_size,input_width,input_height,input_c
 inputs = tf.constant(inputs_vals,dtype=tf.float32)
 
 #quantizer = Quantizers.FixedPointQuantizer(fixed_size,fixed_prec)
-quantizer = Quantizers.FixedPointQuantizer_stochastic(fixed_size,fixed_prec)
-gold_output = quantizer.quantize(inputs)
-output = FP.FixedPointOp(inputs,fixed_size,fixed_prec)
+quantizer = Quantizers.FixedPointQuantizer_down(fixed_size,fixed_prec)
+output = quantizer.quantize(inputs)
+gold_output = FP.FixedPointOp(inputs,fixed_size,fixed_prec)
 
 with tf.Session() as sess:
   gold_result=gold_output.eval().flatten()
   result=output.eval().flatten()
   print('input:')
   print(sess.run(inputs))
-  print('output:')
+  print('quantized input:')
   print(sess.run(gold_output))
   #print(sess.run(output))
   pass

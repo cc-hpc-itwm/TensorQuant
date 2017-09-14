@@ -29,12 +29,14 @@ from nets import nets_factory
 from preprocessing import preprocessing_factory
 from tensorflow.python.client import device_lib
 
-sys.path.append('../TensorLib')
+'''
 from Quantize import QConv
 from Quantize import QFullyConnect
 from Quantize import QBatchNorm
 from Quantize import Factories
+'''
 from Quantize import Quantizers
+
 
 slim = tf.contrib.slim
 

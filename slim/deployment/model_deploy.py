@@ -223,6 +223,7 @@ def _gather_clone_loss(clone, num_clones, regularization_losses):
       if num_clones > 1:
         clone_loss = tf.div(clone_loss, 1.0 * num_clones,
                             name='scaled_clone_loss')
+      # TODO: apply gradient quantization here
       all_losses.append(clone_loss)
     if regularization_losses:
       regularization_loss = tf.add_n(regularization_losses,

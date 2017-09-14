@@ -1,7 +1,5 @@
 import tensorflow as tf
 import numpy as np
-import sys
-sys.path.append('../../TensorLib')
 import Quantizers
 import QFullyConnect as QFC
 

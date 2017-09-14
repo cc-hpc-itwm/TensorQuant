@@ -1,6 +1,5 @@
 import tensorflow as tf
 import numpy as np
-
 import Quantizers
 import QConv
 

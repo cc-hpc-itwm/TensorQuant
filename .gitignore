@@ -2,3 +2,4 @@ tmp/
 experiment_results/
 *.so
 __pycache__
+*.pyc
