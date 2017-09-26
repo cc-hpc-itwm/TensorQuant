@@ -5,11 +5,11 @@ import QConv
 
 from tensorflow.python.ops import nn
 
-input_width = input_height = 20
+input_width = input_height = 10
 filter_width = filter_height = 3
 batch_size = 10
-input_channels = 20
-output_channels = 20
+input_channels = 10
+output_channels = 10
 stride=2
 strides = [1,stride,stride,1]
 padding = "SAME" # "VALID" or "SAME"
@@ -46,9 +46,9 @@ gold_output = nn.convolution(
 with tf.Session() as sess:
   gold_result=gold_output.eval().flatten()
   result=output.eval().flatten()
-  #print(sess.run(gold_output))
-  #print('################################')
-  #print(sess.run(output))
+  print(sess.run(gold_output))
+  print('################################')
+  print(sess.run(output))
   pass
 
 failed=False
