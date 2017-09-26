@@ -16,7 +16,7 @@ TRAIN_DIR=./tmp/inceptionv1-model
 DATASET_NAME=imagenet
 
 # Where the dataset is saved to.
-DATASET_DIR=/mnt/beegfs/tf
+DATASET_DIR=/data/tf
 
 # Run evaluation.
 export CUDA_VISIBLE_DEVICES=0
@@ -29,7 +29,7 @@ python eval_image_classifier.py \
   --model_name=inception_v1 \
   --max_num_batches=10 \
   --batch_size=2 \
-  --intr_quantizer=16,8,nearest \
+  --intr_quantizer=16,8,stochastic \
   --intr_quantize_layers=Conv
 #  --intr_quantizer=16,8,nearest \
 #  --intr_quantize_layers=conv2d \

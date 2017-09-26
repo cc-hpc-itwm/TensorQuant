@@ -5,6 +5,8 @@
 #include <stdlib.h>     /* srand, rand */
 #include <time.h>       /* time */
 
+#define RND_ENTRIES 1000
+
 using namespace tensorflow;
 
 REGISTER_OP("RoundStochastic")
@@ -34,8 +36,12 @@ class RoundOp : public OpKernel {
     OP_REQUIRES(context, fixed_prec >= 0 && fixed_prec < fixed_size,
                 errors::InvalidArgument("fixed_prec needs to be between 0 and fixed_size, got ",
                                         fixed_prec));
+    rnd_counter=0;    
     srand (time(NULL));
+    for(int i=0; i<RND_ENTRIES; ++i) {
+        rnd_numbers[i]= rand() / (RAND_MAX);
     }
+  }
 
   void Compute(OpKernelContext* context) override {
     // Grab the input tensor
@@ -57,7 +63,8 @@ class RoundOp : public OpKernel {
 
     // rounds stochastically (e.g. -0.001 rather to 0, -0.99 rather to -1, -0.5 random)
         T fixed_number = input(i)*(1UL<<fixed_prec);
-        double rnum=(double) rand() / (RAND_MAX);
+        double rnum=rnd_numbers[rnd_counter];
+        rnd_counter=(++rnd_counter)%RND_ENTRIES;
         if ( rnum<=(fixed_number-floor(fixed_number)) ) {
             fixed_number=ceil(fixed_number);
         }
@@ -73,6 +80,8 @@ class RoundOp : public OpKernel {
  private:
     int fixed_size;
     int fixed_prec;
+    int rnd_counter;
+    double rnd_numbers[RND_ENTRIES];
 };
 
 REGISTER_KERNEL_BUILDER(

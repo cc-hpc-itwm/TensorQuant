@@ -316,21 +316,14 @@ def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
     # split input batchwise
     batch_size = inputs.shape.dims[0].value
     output = tf.split(inputs,batch_size)
+    #output_queue = tf.FIFOQueue(batch_size,output.dtype)
 
     # prepare filters
     filter_shape = filters.get_shape()
-    #test_output = tf.extract_image_patches(output[0], 
-    #                                   ksizes=(1,filters.shape.dims[0], filters.shape.dims[1],1), 
-    #                                   strides=strides,
-    #                                   rates=[1,1,1,1],
-    #                                   padding=padding )
-    #out_shape = (test_output.shape.dims[0].value,test_output.shape.dims[1].value,test_output.shape.dims[2].value,test_output.shape.dims[3].value)
     filters=tf.split(filters,filters.shape.dims[3].value,axis=3)
     
     for batch in range(batch_size):
         first = True
-        #current_output = output[batch]
-        #current_output = tf.reshape(current_output,[1,inputs.shape.dims[1].value,inputs.shape.dims[2].value,inputs.shape.dims[3].value])
         output_patch = tf.extract_image_patches(output[batch], 
                                            ksizes=(1,filter_shape.dims[0], filter_shape.dims[1],1), 
                                            strides=strides,

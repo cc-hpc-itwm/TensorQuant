@@ -122,7 +122,7 @@ def main(_):
   if not FLAGS.dataset_dir:
     raise ValueError('You must supply the dataset directory with --dataset_dir')
 
-  tf.logging.set_verbosity(tf.logging.WARN) #can be WARN or INFO
+  tf.logging.set_verbosity(tf.logging.INFO) #can be WARN or INFO
   #with tf.device(FLAGS.device):
   with tf.Graph().as_default():
     tf_global_step = slim.get_or_create_global_step()

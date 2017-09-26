@@ -29,9 +29,9 @@ python eval_image_classifier.py \
   --dataset_split_name=test \
   --dataset_dir=${DATASET_DIR} \
   --model_name=lenet \
-  --max_num_batches=100 \
+  --max_num_batches=10 \
   --batch_size=10 \
-  --intr_quantizer=16,8,nearest \
-  --intr_quantize_layers= \
+  --intr_quantizer=16,8,stochastic \
+  --intr_quantize_layers=Le \
   --extr_quantizer=16,8 \
   --extr_quantize_layers= 
