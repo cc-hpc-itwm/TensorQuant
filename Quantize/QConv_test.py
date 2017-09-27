@@ -5,12 +5,12 @@ import QConv
 
 from tensorflow.python.ops import nn
 
-input_width = input_height = 10
+input_width = input_height = 20
 filter_width = filter_height = 3
 batch_size = 10
 input_channels = 10
 output_channels = 10
-stride=2
+stride=1
 strides = [1,stride,stride,1]
 padding = "SAME" # "VALID" or "SAME"
 data_format = "NHWC"

@@ -28,8 +28,8 @@ python eval_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=inception_v1 \
   --max_num_batches=10 \
-  --batch_size=2 \
-  --intr_quantizer=16,8,nearest \
+  --batch_size=1 \
+  --intr_quantizer=32,12,stochastic \
   --intr_quantize_layers=Conv
 #  --intr_quantizer=16,8,nearest \
 #  --intr_quantize_layers=conv2d \

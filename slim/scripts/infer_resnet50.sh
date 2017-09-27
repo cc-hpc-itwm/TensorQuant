@@ -31,7 +31,7 @@ python eval_image_classifier.py \
   --max_num_batches=10 \
   --batch_size=2 \
   --intr_quantizer=16,8,nearest \
-  --intr_quantize_layers= \
+  --intr_quantize_layers=block \
   --extr_quantizer=16,8 \
   --extr_quantize_layers= 
 

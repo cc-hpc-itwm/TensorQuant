@@ -321,13 +321,23 @@ def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
     filter_shape = filters.get_shape()
     filters=tf.split(filters,filters.shape.dims[3].value,axis=3)
 
-    def inner_cond(index, outputs):
+    # get patch shape, needed for result shape estimation
+    patch = tf.extract_image_patches(output[0], 
+                                           ksizes=(1,filter_shape.dims[0], filter_shape.dims[1],1), 
+                                           strides=strides,
+                                           rates=[1,1,1,1],
+                                           padding=padding )
+    patch_shape = patch.get_shape()
+
+    # inner loop condition and body.
+    # iterates over all output maps
+    def inner_cond(index, outputs, output_patch):
         return index < filter_shape.dims[3].value 
 
-    def inner_body(index, outputs):
+    def inner_body(index, outputs, output_patch):
         current_filter = tf.gather(filters, index)
-        current_filter = tf.reshape(current_filter, [1,1,1,output_patch.shape.dims[3].value])
-        current_filter = tf.tile(current_filter,[1,output_patch.shape.dims[1].value,output_patch.shape.dims[2].value,1])  
+        current_filter = tf.reshape(current_filter, [1,1,1,patch_shape.dims[3].value])
+        current_filter = tf.tile(current_filter,[1,patch_shape.dims[1].value,patch_shape.dims[2].value,1])  
         out = tf.multiply(output_patch, current_filter)
         if quantizer is not None:
             out = quantizer.quantize(out)     # quantize after multiply
@@ -335,8 +345,64 @@ def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
         if quantizer is not None:
             out = quantizer.quantize(out)     # quantize after add
         outputs = tf.concat([outputs,out],3)
-        return [tf.add(index,1), outputs]
+        return [tf.add(index,1), outputs, output_patch]
 
+    # outer loop condition and body
+    # iterates over all batches
+    def outer_cond(batch, result):
+        return batch < batch_size
+
+    def outer_body(batch, result):
+        # extract patch form global 'output'
+        output_patch = tf.extract_image_patches(tf.gather(output,batch), 
+                                           ksizes=(1,filter_shape.dims[0], filter_shape.dims[1],1), 
+                                           strides=strides,
+                                           rates=[1,1,1,1],
+                                           padding=padding )
+        # prepare inner loop interation variable 'out_filter'
+        out_filter=tf.constant(0)
+        # placeholder 'outputs', results will be concatenated to this tensor. 
+        # Remove first element after all elements are computed!
+        outputs=tf.constant(0.0,
+                            shape=[1, output_patch.shape.dims[1].value,
+                            output_patch.shape.dims[2].value, 1])
+        # start inner loop. pass loop iterator, result placeholder and patch. 
+        # Take 2nd element [1] as result!
+        outputs=tf.while_loop( inner_cond, inner_body, [out_filter, outputs, output_patch],
+                shape_invariants=[ out_filter.get_shape(), tf.TensorShape(
+                    [1,output_patch.shape.dims[1].value,output_patch.shape.dims[2].value,None]),
+                    output_patch.get_shape() ],
+                parallel_iterations=10,
+                swap_memory=True )[1]
+        # concatenate batches (along axis 0).
+        # remove first placeholder element from outputs!
+        result= tf.concat([ result,outputs[:,:,:,1:] ], 0)
+        return [tf.add(batch,1), result]
+    
+    # main
+    # prepare outer loop iteration variable 'batch'
+    batch=tf.constant(0)
+    # placeholder 'result', results from inner loop will be concatenated to this tensor.
+    result= tf.constant( 0.0,
+                          shape=[1, patch_shape.dims[1].value,
+                          patch_shape.dims[2].value, filter_shape.dims[3].value] )
+    # start outer loop. pass 'batch' and 'result'.
+    # Take 2nd element [1] as result!
+    result = tf.while_loop( outer_cond, outer_body, [batch, result],
+                shape_invariants=[ batch.get_shape(), tf.TensorShape(
+                    [None,patch_shape.dims[1].value,patch_shape.dims[2].value,filter_shape.dims[3]]) ],
+                parallel_iterations=10,
+                swap_memory=True )[1]
+    # remove first element from placeholder!
+    output = result[1:,:,:,:]
+    # output = tf.squeeze(tf.stack(output),axis=[1])
+
+    # setting shape, since partially ignored by while_loops
+    output.set_shape([batch_size, 
+                        output.shape.dims[1].value,
+                        output.shape.dims[2].value,
+                        filter_shape.dims[3].value]) 
+    '''
     for batch in range(batch_size):
         #first = True
         output_patch = tf.extract_image_patches(output[batch], 
@@ -351,7 +417,7 @@ def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
         outputs=tf.while_loop( inner_cond, inner_body, [out_filter, outputs],
                 shape_invariants=[ out_filter.get_shape(), tf.TensorShape(
                 [1,output_patch.shape.dims[1].value,output_patch.shape.dims[2].value,None]) ],
-                parallel_iterations=100,
+                parallel_iterations=10,
                 swap_memory=True )[1]
         output[batch] = outputs[:,:,:,1:]
         
@@ -361,32 +427,6 @@ def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
                         output.shape.dims[1].value,
                         output.shape.dims[2].value,
                         filter_shape.dims[3].value]) 
-
-    '''
-    for batch in range(batch_size):
-        first = True
-        output_patch = tf.extract_image_patches(output[batch], 
-                                           ksizes=(1,filter_shape.dims[0], filter_shape.dims[1],1), 
-                                           strides=strides,
-                                           rates=[1,1,1,1],
-                                           padding=padding )
-        for out_filter in range(filter_shape.dims[3].value):
-            current_filter = filters[out_filter]
-            current_filter = tf.reshape(current_filter, [1,1,1,output_patch.shape.dims[3].value])
-            current_filter = tf.tile(current_filter,[1,output_patch.shape.dims[1].value,output_patch.shape.dims[2].value,1])  
-            out = tf.multiply(output_patch,current_filter)
-            if quantizer is not None:
-                out = quantizer.quantize(out)     # quantize after multiply
-            out = tf.reduce_sum(out,axis=3,keep_dims=True)
-            if quantizer is not None:
-                out = quantizer.quantize(out)     # quantize after add
-            if first:
-                outputs = out
-                first=False
-            else:
-                outputs = tf.concat([outputs,out],3)
-        output[batch] = outputs
-    output = tf.squeeze(tf.stack(output),axis=[1])
     '''
     return output
 
