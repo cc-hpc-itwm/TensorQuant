@@ -38,7 +38,7 @@ python train_image_classifier.py \
   --optimizer=sgd \
   --learning_rate_decay_type=fixed \
   --weight_decay=0 \
-  --grad_quantizer=16,8,nearest
+  --grad_quantizer=nearest,16,8
 
 # Run evaluation.
 python eval_image_classifier.py \

@@ -1,17 +1,7 @@
-# Copyright 2016 The TensorFlow Authors. All Rights Reserved.
+# Utilities used in the evaluation and training python scripts.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
+# author: Dominik Loroch
+# date: August 2017
 
 from __future__ import absolute_import
 from __future__ import division
@@ -37,64 +27,98 @@ from Quantize import Factories
 '''
 from Quantize import Quantizers
 
-
 slim = tf.contrib.slim
 
 
-def quantizer_selector(selector_str, **kwargs):
-    quantizer=None
+def quantizer_selector(selector_str, arg_list):
+    """ Builds and returns the specified quantizer.
+    Args:
+        selector_str: The name of the quantizer.
+        arg_list: Arguments which need to be passed to the constructor of the quantizer.
+    Returns:
+        Quantizer object.
+    """
     if selector_str=="zero":
         quantizer = Quantizers.FixedPointQuantizer_zero(
-                                    kwargs['quant_width'], kwargs['quant_prec'])
+                                    int(arg_list[0]), int(arg_list[1]) )
     elif selector_str=="down":
         quantizer = Quantizers.FixedPointQuantizer_down(
-                                    kwargs['quant_width'], kwargs['quant_prec'])
+                                    int(arg_list[0]), int(arg_list[1]) )
     elif selector_str=="nearest":
         quantizer = Quantizers.FixedPointQuantizer_nearest(
-                                    kwargs['quant_width'], kwargs['quant_prec'])
+                                    int(arg_list[0]), int(arg_list[1]) )
     elif selector_str=="stochastic":
         quantizer = Quantizers.FixedPointQuantizer_stochastic(
-                                    kwargs['quant_width'], kwargs['quant_prec'])
+                                    int(arg_list[0]), int(arg_list[1]) )
     else:
         raise ValueError('Quantizer %s not recognized!'%(selector_str))
     return quantizer        
 
 
 def get_available_gpus():
+    """ Returns available GPUs.
+    Returns:
+        List of available GPUs.
+    """
     local_device_protos = device_lib.list_local_devices()
     return [x.name for x in local_device_protos if x.device_type == 'GPU']
 
 
-def quantizer_map(quantizer_str, quantize_layers):
-    quant_width=0
-    quant_prec=0
-    rounding=''
-    
-    # make a list from the layers to be quantized
-    if quantize_layers !="":
-        q_layers = quantize_layers.split(",")
+def split_quantizer_str(quantizer_str):
+    """ Splits a comma seperated list into its components.
+        Interprets the first entry as the quantizer name.
+    Args:
+        quantizer_str: String in the form: "quantizer_type,argument_1,argument_2,..."
+    Returns:
+        Tupel of strings in the form (quantizer_type, [argument_1, argument_2,...])
+    """
+    quantizer_type=''
+    args=[]
+    tokens = quantizer_str.split(',')
+    if len(tokens) > 0:
+        quantizer_type=tokens[0]
+    if len(tokens) > 1:
+        args=tokens[1:]
+    return (quantizer_type, args)
+
+
+def split_layers_str(layers_str):
+    """ Splits a comma seperated list into its components.
+    Strips leading and trailing blanks from each entry.
+    Args:
+        layers_str: String in the form: "layer_1,layer_2,..."
+    Returns:
+        List of strings in the form [layer_1, layer_2, ...]
+    """
+    if layers_str !="":
+        layers = layers_str.split(",")
+        layers = [layer.strip() for layer in layers]
     else:
-        q_layers = None
+        layers = []
+    return layers
+
+
+def quantizer_map(quantizer_str, quantize_layers):
+    """ Creates a Quantizer map. All specified layers share the same quantizer type.
+    Args:
+        quantizer_str: A string specifying the quantizer.
+        quantize_layers: Comma seperated string or list of strings, specifying the layers.
+    Returns:
+        A dictionary containing the mapping from layers to quantizers.
+    """
+    # make a list from the layers to be quantized
+    if type(quantize_layers) is str:
+        q_layers=split_layers_str(quantize_layers)
 
     # get the quantizer parameters
-    tokens = quantizer_str.split(',')
-    if len(tokens)>=2:
-        quant_width = int(tokens[0])
-        quant_prec = int(tokens[1])
-    if len(tokens)>=3:
-        rounding = tokens[2]
+    quantizer_type, arg_list = split_quantizer_str(quantizer_str)
 
     # generate quantizer dictionary
-    if quantizer_str !='' and q_layers is not None:
-        if quant_width > quant_prec and quant_prec >= 0:
-            q_map={}
-            for key in q_layers:
-                q_map[key]=quantizer_selector(rounding, quant_width=quant_width, quant_prec=quant_prec)
-        else:
-            raise ValueError('Quantizer initialized with invalid values: (%d,%d)'
-                                %(quant_width,quant_prec))
+    if quantizer_type !='' and len(q_layers)!=0:
+        q_map={}
+        for key in q_layers:
+                q_map[key]=quantizer_selector(quantizer_type, arg_list)
     else:
         q_map=None
-
-    return (q_map, quant_width, quant_prec, rounding)
+    return q_map
 

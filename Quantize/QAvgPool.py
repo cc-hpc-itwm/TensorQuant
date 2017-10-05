@@ -1,3 +1,6 @@
+# File copied from tensorflow/python/layers/pooling.py
+# Minor modifications are applied to enable intrinsic quantization
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -181,8 +184,9 @@ class AveragePooling2D(_Pooling2D):
         padding=padding, data_format=data_format, name=name, quantizer=quantizer, **kwargs)
 
 
+
 def avg_pool(value, ksize, strides, padding, quantizer, data_format="NHWC", name=None):
-  """Performs the average pooling on the input.
+  """Performs the average pooling on the input (quantized version).
   Each entry in `output` is the mean of the corresponding size `ksize`
   window in `value`.
   Args:
@@ -195,6 +199,7 @@ def avg_pool(value, ksize, strides, padding, quantizer, data_format="NHWC", name
       input tensor.
     padding: A string, either `'VALID'` or `'SAME'`. The padding algorithm.
       See the @{tf.nn.convolution$comment here}
+    quantizer: The quantizer which is applied after every step.
     data_format: A string. 'NHWC' and 'NCHW' are supported.
     name: Optional name for the operation.
   Returns:

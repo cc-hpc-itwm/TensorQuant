@@ -1,13 +1,6 @@
 #!/bin/bash
 #
-# This script performs the following operations:
-# 1. Downloads the MNIST dataset
-# 2. Trains a LeNet model on the MNIST training set.
-# 3. Evaluates the model on the MNIST testing set.
-#
-# Usage:
-# cd slim
-# ./slim/scripts/train_lenet_on_mnist.sh
+# Start script from slim/ directory!
 
 # Where the checkpoint and logs will be saved to.
 TRAIN_DIR=./tmp/alexnet-model/test
@@ -16,12 +9,8 @@ TRAIN_DIR=./tmp/alexnet-model/test
 DATASET_NAME=imagenet
 
 # Where the dataset is saved to.
-DATASET_DIR=/mnt/beegfs/tf
+DATASET_DIR=/data/tf
 
-# Download the dataset
-#python download_and_convert_data.py \
-#  --dataset_name=${DATASET_NAME} \
-#  --dataset_dir=${DATASET_DIR}
 echo "######################"
 echo "Start training"
 date

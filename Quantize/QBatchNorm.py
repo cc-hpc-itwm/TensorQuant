@@ -1,3 +1,6 @@
+# Copied from tensorflow/contrib/layers/python/layers/layers.py
+# Minor modifications are applied to enable intrinsic quantization
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -31,8 +34,6 @@ from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables as tf_variables
 from tensorflow.python.training import moving_averages
 
-import sys
-sys.path.append('/home/loroch/TensorFlow/TensorLib')
 from Quantize import Quantizers
 
 DATA_FORMAT_NCHW = 'NCHW'

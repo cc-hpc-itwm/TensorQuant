@@ -1,6 +1,10 @@
 tmp/
 experiment_results/
+old/
+experiments/
+train_experiments/
 *.so
 __pycache__
 *.pyc
 *.o
+*.out

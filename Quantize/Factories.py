@@ -8,8 +8,18 @@ from Quantize import QAvgPool
 slim = tf.contrib.slim
 
 def generic_factory(layer_function, q_layer_function, intr_q_map=None, extr_q_map=None):
+    ''' Generic function for layer factories.
+    Args:
+        layer_function: Layer applied if no intrinsic quantization (usually slim-layers).
+        q_layer_function: Layer applied if intrinsic quantization.
+        intr_q_map: Dictionary containing mapping from layers to quantizers for intrinsic quantization.
+        extr_q_map: Dictionary containing mapping from layers to quantizers for extrinsic quantization.
+    Returns:
+        A function which can be called like a layer
+    '''
     def func(*args,**kwargs):
         layer_ID=tf.get_variable_scope().name + "/" + kwargs["scope"]
+        # Intrinsic quantization
         if intr_q_map is None:
             net=layer_function(*args,**kwargs)
         elif ( any(layer in layer_ID for layer in intr_q_map.keys()) ):
@@ -20,8 +30,7 @@ def generic_factory(layer_function, q_layer_function, intr_q_map=None, extr_q_ma
             net=q_layer_function(*args,**kwargs) #, quantizer=intr_q_map[layer])
         else:
             net=layer_function(*args,**kwargs)
-
-        # Extr quantizer is similar to intrinsic.
+        # Extrinsic quantization
         if extr_q_map is None:
             return net
         elif ( any(layer in layer_ID for layer in extr_q_map.keys()) ):

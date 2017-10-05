@@ -118,7 +118,6 @@ def get_network_fn(name, num_classes, weight_decay=0.0, is_training=False,
   @functools.wraps(func)
   def network_fn(images, reuse=None):
     if intr_q_map is not None and 'batch_norm' in intr_q_map.keys():
-        print('Quantizing batch normalization layers (all)')
         arg_scope = arg_scopes_map[name](weight_decay=weight_decay,
                                 batch_norm_quantizer=intr_q_map['batch_norm'])
     else:

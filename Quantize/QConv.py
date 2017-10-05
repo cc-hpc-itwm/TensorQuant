@@ -1,10 +1,11 @@
+# File copied from tensorflow/contrib/layers/python/layers/layers.py
+# Minor modifications are applied to enable intrinsic quantization
+
 import tensorflow as tf
 
 from tensorflow.python.layers import convolutional
 from tensorflow.contrib.layers.python.layers import layers
 
-import sys
-sys.path.append('/home/loroch/TensorFlow/TensorLib')
 from Quantize import Quantizers
 
 # from slim
@@ -164,20 +165,19 @@ class _QConv(convolutional._Conv):
                **kwargs)
         self.quantizer = quantizer
         self.use_quantized_weights = use_quantized_weights
-
+    '''
     def build(self, input_shape):
         super(_QConv,self).build(input_shape)
         if self.quantizer is not None and self.use_quantized_weights:
-            self.kernel = self.quantizer.quantize(self.kernel)
-
+            self.quantized_kernel = self.quantizer.quantize(self.kernel)
+    '''
 
     def call(self, inputs):
-        '''
-        if self.use_quantized_weights:
-                used_kernel = self.quantized_kernel
+        if self.use_quantized_weights and self.quantizer is not None:
+                used_kernel = self.quantizer.quantize(self.kernel)
         else:
                 used_kernel = self.kernel
-        '''
+
         if self.rank == 2:          
           if self.quantizer is None:
             outputs = nn.convolution(
@@ -188,7 +188,7 @@ class _QConv(convolutional._Conv):
             padding=self.padding.upper(),
             data_format=utils.convert_data_format(self.data_format, self.rank + 2))
           else: # with quantization
-            outputs = q2dconvolution(input=inputs, filter=self.kernel, quantizer=self.quantizer,
+            outputs = q2dconvolution(input=inputs, filter=used_kernel, quantizer=self.quantizer,
                 padding=self.padding.upper(), strides=self.strides, dilation_rate=self.dilation_rate,
                 data_format=utils.convert_data_format(self.data_format, self.rank + 2))
         else:
@@ -305,8 +305,11 @@ def q2dconvolution(input, filter, quantizer,  # pylint: disable=redefined-builti
     return output
 
 
+# parallel_iterations and swap_memory in tf.while_loops can be adjusted
 def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format):
-    ''' inputs:  [batch_size, image_height, image_width, input_channels] 
+    ''' Reimplementation of the 2D convolution layer.
+    Args: 
+        inputs:  [batch_size, image_height, image_width, input_channels] 
         filters: [filter_height, filter_width, input_channels, output_channels]
         quantizer: Quantizer object, has interface '.quantize(tensor)'       
     '''
@@ -402,32 +405,6 @@ def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
                         output.shape.dims[1].value,
                         output.shape.dims[2].value,
                         filter_shape.dims[3].value]) 
-    '''
-    for batch in range(batch_size):
-        #first = True
-        output_patch = tf.extract_image_patches(output[batch], 
-                                           ksizes=(1,filter_shape.dims[0], filter_shape.dims[1],1), 
-                                           strides=strides,
-                                           rates=[1,1,1,1],
-                                           padding=padding )
-        out_filter=tf.constant(0)
-        outputs=tf.constant(0.0,
-                            shape=[1, output_patch.shape.dims[1].value,
-                            output_patch.shape.dims[2].value, 1])
-        outputs=tf.while_loop( inner_cond, inner_body, [out_filter, outputs],
-                shape_invariants=[ out_filter.get_shape(), tf.TensorShape(
-                [1,output_patch.shape.dims[1].value,output_patch.shape.dims[2].value,None]) ],
-                parallel_iterations=10,
-                swap_memory=True )[1]
-        output[batch] = outputs[:,:,:,1:]
-        
-    output = tf.squeeze(tf.stack(output),axis=[1])
-    # adding last dimension, since forgotten by while_loop
-    output.set_shape([output.shape.dims[0].value, 
-                        output.shape.dims[1].value,
-                        output.shape.dims[2].value,
-                        filter_shape.dims[3].value]) 
-    '''
     return output
 
 

@@ -1,18 +1,10 @@
 import tensorflow as tf
 import numpy as np
-bwreshape_module = tf.load_op_library('../Kernels/BWReshapeOp.so') 
+
 round_module_zero = tf.load_op_library('../Kernels/RoundOp_zero.so') 
 round_module_down = tf.load_op_library('../Kernels/RoundOp_down.so') 
 round_module_nearest = tf.load_op_library('../Kernels/RoundOp_nearest.so') 
 round_module_stochastic = tf.load_op_library('../Kernels/RoundOp_stochastic.so') 
-fixedconv_module = tf.load_op_library('../Kernels/FixedConv.so') 
-
-NEGATIVE_ROUND=False
-
-def trunc(input1, fixed_size, fixed_prec):
-    ''' Truncates input1 to a fixed point number. '''
-    result_trunc = bwreshape_module.bitwidth_reshape(input1,fixed_size=fixed_size,fixed_prec=fixed_prec)
-    return result_trunc
 
 def round_zero(input1, fixed_size, fixed_prec):
     ''' Truncates input1 to a fixed point number. 
@@ -34,9 +26,13 @@ def round_nearest(input1, fixed_size, fixed_prec):
 
 def round_stochastic(input1, fixed_size, fixed_prec):
     ''' Truncates input1 to a fixed point number. 
-        Rounds stochastically, whereas the fractional part influences the probability.'''
+        Rounds randomly, but the fractional part influences the probability.'''
     result = round_module_stochastic.round_stochastic(input1,fixed_size=fixed_size,fixed_prec=fixed_prec)
     return result
+
+
+# Kernel-less functions
+# -------------------------------------------------
 
 def toFixed(fp_number, fixed_size, fixed_prec):
     ''' Turns the elements of a floating point numpy matrix into fixed point equivalents with bitwidth fixed_size and fractional bits fixed_prec.'''
@@ -55,11 +51,12 @@ def fixTensor(tensor, session, fixed_size, fixed_prec):
     tensor.load(tensor_a,session)
     return tensor
 
+ZERO_ROUND=False
 def FixedPointOp(tensor, fixed_size, fixed_prec):
     fixed_max_signed = (2**(fixed_size-1)-1)/(2**fixed_prec)
     fixed_min_signed = -(2**(fixed_size-fixed_prec-1))
 
-    if NEGATIVE_ROUND:
+    if ZERO_ROUND:
         # rounds towards zero (e.g. -0.001 -> 0 )
 	    tensor = tf.floor(tf.abs(tensor)*(2**fixed_prec)) / (2**fixed_prec) * tf.sign(tensor);
     else:

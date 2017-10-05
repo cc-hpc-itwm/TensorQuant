@@ -5,17 +5,6 @@ class Quantizer_if():
     def quantize(self,tensor):
         raise NotImplementedError
 
-
-class FixedPointQuantizer(Quantizer_if):
-    """Fixed point quantization with fixed_size bits and fixed_prec fractional bits.
-       Uses c-kernel for quantization. 
-    """
-    def __init__(self, fixed_size, fixed_prec):
-        self.fixed_size=fixed_size
-        self.fixed_prec=fixed_prec
-    def quantize(self,tensor):
-        return FixedPoint.trunc(tensor,self.fixed_size,self.fixed_prec)
-
 class FixedPointQuantizer_zero(Quantizer_if):
     """Fixed point quantization with fixed_size bits and fixed_prec fractional bits.
        Uses c-kernel for quantization. 

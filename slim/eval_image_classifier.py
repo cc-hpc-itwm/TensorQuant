@@ -122,7 +122,7 @@ def main(_):
   if not FLAGS.dataset_dir:
     raise ValueError('You must supply the dataset directory with --dataset_dir')
 
-  tf.logging.set_verbosity(tf.logging.INFO) #can be WARN or INFO
+  tf.logging.set_verbosity(tf.logging.WARN) #can be WARN or INFO
   #with tf.device(FLAGS.device):
   with tf.Graph().as_default():
     tf_global_step = slim.get_or_create_global_step()
@@ -143,49 +143,12 @@ def main(_):
     intr_rounding=''
     extr_rounding=''
     
-    
-    # make a list from the layers to be quantized
-    intr_q_layers = FLAGS.intr_quantize_layers.split(",") if FLAGS.intr_quantize_layers !="" else None
-    extr_q_layers = FLAGS.extr_quantize_layers.split(",") if FLAGS.extr_quantize_layers !="" else None
-
-    tokens = FLAGS.intr_quantizer.split(',')
-    if len(tokens)>=2:
-        intr_quant_width = int(tokens[0])
-        intr_quant_prec = int(tokens[1])
-    if len(tokens)==3:
-        intr_rounding = tokens[2]
-
-    if FLAGS.intr_quantizer !='' and intr_q_layers is not None:
-        #tokens = FLAGS.intr_quantizer.split(',')
-        #intr_quant_width = int(tokens[0])
-        #intr_quant_prec = int(tokens[1])
-        #intr_rounding = tokens[2]
-        if intr_quant_width > intr_quant_prec and intr_quant_prec >= 0:
-                intr_q_map = dict.fromkeys( intr_q_layers,
-                                utils.quantizer_selector(intr_rounding, 
-                                    quant_width=intr_quant_width, quant_prec=intr_quant_prec) )
-        else:
-            raise ValueError('Intrinsic Quantizer initialized with invalid values: (%d,%d)'
-                                %(intr_quant_width,intr_quant_prec))
-    else:
-        intr_q_map=None
-
-    # mapping for the extrinsic quantizer
-    if FLAGS.extr_quantizer !='' and extr_q_layers is not None:
-        tokens = FLAGS.extr_quantizer.split(',')
-        extr_quant_width = int(tokens[0])
-        extr_quant_prec = int(tokens[1])
-        extr_rounding = tokens[2]
-        if extr_quant_width > extr_quant_prec and extr_quant_prec >= 0:
-                extr_q_map = dict.fromkeys( extr_q_layers,
-                                utils.quantizer_selector(extr_rounding, 
-                                    quant_width=extr_quant_width, quant_prec=extr_quant_prec) )
-        
-        else:
-            raise ValueError('Intrinsic Quantizer initialized with invalid values: (%d,%d)'
-                                %(extr_quant_width,extr_quant_prec))
-    else:
-        extr_q_map=None
+    intr_q_map=utils.quantizer_map(FLAGS.intr_quantizer, FLAGS.intr_quantize_layers)
+    if intr_q_map is not None:
+        intr_rounding, [intr_width, intr_prec] = utils.split_quantizer_str(FLAGS.intr_quantizer)
+    extr_q_map=utils.quantizer_map(FLAGS.extr_quantizer, FLAGS.extr_quantize_layers)
+    if extr_q_map is not None:    
+        extr_rounding, [extr_width, extr_prec] = utils.split_quantizer_str(FLAGS.extr_quantizer)
 
     ####################
     # Select the model #
@@ -232,7 +195,6 @@ def main(_):
         batch_size=FLAGS.batch_size,
         num_threads=FLAGS.num_preprocessing_threads,
         capacity=5 * FLAGS.batch_size)
-
     
     logits, endpoints = network_fn(images)
     predictions= tf.argmax(logits, 1)
@@ -241,36 +203,6 @@ def main(_):
     
     #for var in endpoints:
     #    print(var)
-
-    '''
-    # on all GPUs:
-    available_gpus=get_available_gpus() 
-    images={}
-    labels={}
-    for dev in available_gpus:
-      images[dev], labels[dev] = tf.train.batch(
-        [image, label],
-        batch_size=FLAGS.batch_size,
-        num_threads=FLAGS.num_preprocessing_threads,
-        capacity=10 * FLAGS.batch_size)
-    logits={}
-    endpoints={}
-    predictions={}
-    first=True
-    for dev in available_gpus:
-        with tf.device(dev):
-            if first:
-                logits[dev], endpoints[dev] = network_fn(images[dev],reuse=None)
-                first=False
-            else:
-                logits[dev], endpoints[dev] = network_fn(images[dev],reuse=True)
-        predictions[dev]= tf.argmax(logits[dev], 1)
-        labels[dev] = tf.squeeze(labels[dev])
-    predictions = tf.stack(list(predictions.values()),axis=0)
-    labels = tf.stack(list(labels.values()),axis=0)
-    used_gpus=len(available_gpus)
-    print('Using %d GPUs.'%(used_gpus))
-    '''
     
     if FLAGS.moving_average_decay:
       variable_averages = tf.train.ExponentialMovingAverage(
@@ -314,9 +246,6 @@ def main(_):
     #config.gpu_options.allocator_type = 'BFC'
     # Run Session
     print('Running %s for %d iterations'%(FLAGS.model_name,num_batches))
-    # print('placed on %s'%(dev_name))
-    print('layers: %s (intr), %s (extr)'%(FLAGS.intr_quantize_layers,FLAGS.extr_quantize_layers))
-    print('intr:%s, extr:%s'%(FLAGS.intr_quantizer,FLAGS.extr_quantizer))
 
     start_time_simu = time.time()
     metric_values = slim.evaluation.evaluate_once(
@@ -335,7 +264,7 @@ def main(_):
 
     # tf.train.export_meta_graph(filename=FLAGS.checkpoint_path+'/model.meta')
 
-    # write data to file in json
+    # write data to .json file
     if FLAGS.output_file is not None:
       print('Writing results to file %s'%(FLAGS.output_file))
       with open(FLAGS.output_file,'a') as hfile:

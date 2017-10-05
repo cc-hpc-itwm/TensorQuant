@@ -1,13 +1,6 @@
 #!/bin/bash
 #
-# This script performs the following operations:
-# 1. Downloads the MNIST dataset
-# 2. Trains a LeNet model on the MNIST training set.
-# 3. Evaluates the model on the MNIST testing set.
-#
-# Usage:
-# cd slim
-# ./slim/scripts/train_lenet_on_mnist.sh
+# Start script from slim/ directory!
 
 # Where the checkpoint and logs will be saved to.
 TRAIN_DIR=./tmp/lenet-model
@@ -31,7 +24,7 @@ python eval_image_classifier.py \
   --model_name=lenet \
   --max_num_batches=10 \
   --batch_size=10 \
-  --intr_quantizer=16,8,stochastic \
+  --intr_quantizer=nearest,16,8 \
   --intr_quantize_layers=Le \
-  --extr_quantizer=16,8 \
-  --extr_quantize_layers= 
+#  --extr_quantizer=16,8 \
+#  --extr_quantize_layers= 

@@ -1,3 +1,6 @@
+# File copied from tensorflow/contrib/layers/python/layers/layers.py
+# Minor modifications are applied to enable intrinsic quantization
+
 import tensorflow as tf
 
 import functools
@@ -6,8 +9,6 @@ import six
 from tensorflow.python.layers import convolutional
 from tensorflow.contrib.layers.python.layers import layers
 
-import sys
-sys.path.append('/home/loroch/TensorFlow/TensorLib')
 from Quantize import Quantizers
 
 # from slim
@@ -135,23 +136,23 @@ class QDense(core_layers.Dense):
                **kwargs)
     self.quantizer = quantizer
     self.use_quantized_weights = use_quantized_weights
-
+    '''
     def build(self, input_shape):
         super(QDense,self).build(input_shape)
         if self.quantizer is not None and self.use_quantized_weights:
             self.kernel = self.quantizer.quantize(self.kernel)
-
+    '''
   # overridden call method
   def call(self, inputs):
     inputs = ops.convert_to_tensor(inputs, dtype=self.dtype)
     shape = inputs.get_shape().as_list()
     output_shape = shape[:-1] + [self.units]
-    '''
-    if self.use_quantized_weights:
-            used_kernel = self.quantized_kernel
+
+    if self.use_quantized_weights and self.quantizer is not None:
+            used_kernel = self.quantizer.quantize(self.kernel)
     else:
             used_kernel = self.kernel
-    '''
+
     if len(output_shape) > 2:
       ## Broadcasting is required for the inputs.
       #outputs = standard_ops.tensordot(inputs, self.kernel, [[len(shape) - 1],
@@ -163,7 +164,7 @@ class QDense(core_layers.Dense):
       if self.quantizer is None:
         outputs = standard_ops.matmul(inputs, self.kernel)
       else: # with quantization
-        outputs = qmatmul(inputs, self.kernel, self.quantizer)
+        outputs = qmatmul(inputs, used_kernel, self.quantizer)
     #TODO: quantize after bias and activation
     if self.use_bias:
       outputs = nn.bias_add(outputs, self.bias)

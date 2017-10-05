@@ -27,6 +27,7 @@ from nets import nets_factory
 from preprocessing import preprocessing_factory
 
 from Quantize import Quantizers
+from Quantize import QSGD
 
 import utils
 
@@ -332,7 +333,8 @@ def _configure_optimizer(learning_rate):
         momentum=FLAGS.momentum,
         epsilon=FLAGS.opt_epsilon)
   elif FLAGS.optimizer == 'sgd':
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    #optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    optimizer = QSGD.GradientDescentOptimizer(learning_rate)
   else:
     raise ValueError('Optimizer [%s] was not recognized', FLAGS.optimizer)
   return optimizer
@@ -414,35 +416,18 @@ def main(_):
     #######################
     # Quantizers          #
     #######################
-    
 
-    (grad_quantizer, grad_quant_width, grad_quant_prec, grad_rounding)=(
-            utils.quantizer_map(FLAGS.grad_quantizer, 'grad') )
+    # little workaround to use quantizer_map to select single quantizer.
+    grad_quantizer= utils.quantizer_map(FLAGS.grad_quantizer, 'grad')
     if grad_quantizer is not None:
         grad_quantizer=grad_quantizer['grad']
-    '''
-    if FLAGS.grad_quantizer is not None:
-        tokens = FLAGS.grad_quantizer.split(',')
-        grad_quant_width = int(tokens[0])
-        grad_quant_prec = int(tokens[1])
-        grad_rounding = tokens[2]
-        if grad_quant_width > grad_quant_prec and grad_quant_prec >= 0:
-                grad_quantizer = utils.quantizer_selector(grad_rounding, 
-                                    quant_width=grad_quant_width, quant_prec=grad_quant_prec)
-        else:
-            raise ValueError('Intrinsic Quantizer initialized with invalid values: (%d,%d)'
-                                %(grad_quant_width,grad_quant_prec))
-    else:
-        grad_quantizer=None
-        grad_quant_width=0
-        grad_quant_prec=0
-        grad_rounding=''
-    '''
 
-    (intr_q_map, intr_width, intr_prec, intr_rounding)=(
-            utils.quantizer_map(FLAGS.intr_quantizer, FLAGS.intr_quantize_layers) )
-    (extr_q_map, extr_width, extr_prec, extr_rounding)=(
-            utils.quantizer_map(FLAGS.extr_quantizer, FLAGS.extr_quantize_layers) )
+    intr_q_map=utils.quantizer_map(FLAGS.intr_quantizer, FLAGS.intr_quantize_layers)
+    if intr_q_map is not None:
+        intr_rounding, [intr_width, intr_prec] = utils.split_quantizer_str(FLAGS.intr_quantizer)
+    extr_q_map=utils.quantizer_map(FLAGS.extr_quantizer, FLAGS.extr_quantize_layers)
+    if extr_q_map is not None:    
+        extr_rounding, [extr_width, extr_prec] = utils.split_quantizer_str(FLAGS.extr_quantizer)
 
     #######################
     # Config model_deploy #
@@ -600,7 +585,7 @@ def main(_):
         summaries.add(tf.summary.histogram('gradient/%s'%gv[1].op.name, gv[0]))
 
     # Create gradient updates.
-    #TODO: quantize 'clones_gradients'
+    # quantize 'clones_gradients'
     if grad_quantizer is not None:
         clones_gradients=[(grad_quantizer.quantize(gv[0]),gv[1]) for gv in clones_gradients]
 

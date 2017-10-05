@@ -12,16 +12,13 @@ output_channels = 6
 fixed_size = 8
 fixed_prec = 4
 
-#inputs_vals = np.ones((batch_size,input_width*input_height*input_channels))
+
 inputs_vals = np.arange(input_width*input_height*input_channels*batch_size).reshape(batch_size,input_width*input_height*input_channels)
-#print(inputs_vals)
-#filters_vals = np.ones((input_channels*input_width*input_height,output_channels)) 
 filters_vals = np.arange(input_channels*input_width*input_height*output_channels).reshape(input_channels*input_width*input_height,output_channels)
 
 inputs = tf.constant(inputs_vals,dtype=tf.float64)
 filters = tf.constant(filters_vals,dtype=tf.float64)
 
-#quantizer = Quantizers.FixedPointQuantizer(fixed_size,fixed_prec)
 quantizer = Quantizers.NoQuantizer()
 output = QFC.qmatmul(inputs, filters, quantizer)
 gold_output = standard_ops.matmul(inputs, filters)

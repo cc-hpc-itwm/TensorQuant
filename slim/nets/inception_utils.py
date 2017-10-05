@@ -53,20 +53,33 @@ def inception_arg_scope(weight_decay=0.00004,
   Returns:
     An `arg_scope` to use for the inception models.
   """
-  batch_norm_params = {
-      # Decay for the moving averages.
-      'decay': batch_norm_decay,
-      # epsilon to prevent 0s in variance.
-      'epsilon': batch_norm_epsilon,
-      # collection containing update_ops.
-      'updates_collections': tf.GraphKeys.UPDATE_OPS,
-      # quantizer to use.
-      'quantizer': batch_norm_quantizer,
-      # use quantized mean, variance, gamma and beta
-      'use_quantized_weights': True,
-  }
+  if batch_norm_quantizer is not None:
+    batch_norm_params = {
+          # Decay for the moving averages.
+          'decay': batch_norm_decay,
+          # epsilon to prevent 0s in variance.
+          'epsilon': batch_norm_epsilon,
+          # collection containing update_ops.
+          'updates_collections': tf.GraphKeys.UPDATE_OPS,
+          # quantizer to use.
+          'quantizer': batch_norm_quantizer,
+          # use quantized mean, variance, gamma and beta
+          'use_quantized_weights': True,
+      }
+  else:
+    batch_norm_params = {
+          # Decay for the moving averages.
+          'decay': batch_norm_decay,
+          # epsilon to prevent 0s in variance.
+          'epsilon': batch_norm_epsilon,
+          # collection containing update_ops.
+          'updates_collections': tf.GraphKeys.UPDATE_OPS,
+      }
   if use_batch_norm:
-    normalizer_fn = QBatchNorm.batch_norm
+    if batch_norm_quantizer is not None:
+        normalizer_fn = QBatchNorm.batch_norm
+    else:
+        normalizer_fn = slim.batch_norm
     normalizer_params = batch_norm_params
   else:
     normalizer_fn = None

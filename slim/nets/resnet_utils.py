@@ -246,10 +246,6 @@ def resnet_arg_scope(weight_decay=0.0001,
       'epsilon': batch_norm_epsilon,
       'scale': batch_norm_scale,
       'updates_collections': tf.GraphKeys.UPDATE_OPS,
-      # quantizer to use.
-      'quantizer': batch_norm_quantizer,
-      # use quantized mean, variance, gamma and beta
-      'use_quantized_weights': True,
   }
 
   with slim.arg_scope(
@@ -257,7 +253,7 @@ def resnet_arg_scope(weight_decay=0.0001,
       weights_regularizer=slim.l2_regularizer(weight_decay),
       weights_initializer=slim.variance_scaling_initializer(),
       activation_fn=tf.nn.relu,
-      normalizer_fn=QBatchNorm.batch_norm,
+      normalizer_fn=slim.batch_norm,
       normalizer_params=batch_norm_params):
     with slim.arg_scope([slim.batch_norm, QBatchNorm.batch_norm], **batch_norm_params):
       # The following implies padding='SAME' for pool1, which makes feature

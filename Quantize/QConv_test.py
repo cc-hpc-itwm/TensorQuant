@@ -31,10 +31,8 @@ filters_vals = np.random.normal(size=(filter_width,filter_height,input_channels,
 inputs = tf.constant(inputs_vals,dtype=tf.float32)
 filters = tf.constant(filters_vals,dtype=tf.float32)
 
-#quantizer = Quantizers.FixedPointQuantizer(fixed_size,fixed_prec)
 quantizer = Quantizers.NoQuantizer()
 output = QConv.q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
-#output = QConv.q2dconvolutionfixed_op(inputs, filters, fixed_size, fixed_prec, strides, padding, data_format)
 
 gold_output = nn.convolution(
         input=inputs,
@@ -46,9 +44,9 @@ gold_output = nn.convolution(
 with tf.Session() as sess:
   gold_result=gold_output.eval().flatten()
   result=output.eval().flatten()
-  print(sess.run(gold_output))
-  print('################################')
-  print(sess.run(output))
+#  print(sess.run(gold_output))
+#  print('################################')
+#  print(sess.run(output))
   pass
 
 failed=False
