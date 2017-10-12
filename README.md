@@ -35,7 +35,7 @@ or TensorFlow will not be able to restore the model parameters from the specifie
 
 ## Running Simulations with Slim
 
-You can use the scripts in the slim/scripts/ directory as a starting point. Make sure the directories in the scripts are set up correctly. 'TRAIN_DIR' should point to the directory with the .ckpt file and 'DATASET_DIR' to the dataset. Run a script (e.g. GoogLeNet on ImageNet)from the slim/ directory with
+You can use the scripts in the slim/scripts/ directory as a starting point. Make sure the directories in the scripts are set up correctly. 'TRAIN_DIR' should point to the directory with the .ckpt file and 'DATASET_DIR' to the dataset. Run a script (e.g. GoogLeNet on ImageNet) from the slim/ directory with
 ```
 ./scripts/infer_googlenet_on_imagenet.sh &
 ```
