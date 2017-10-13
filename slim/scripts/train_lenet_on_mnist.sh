@@ -10,7 +10,9 @@
 # ./slim/scripts/train_lenet_on_mnist.sh
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/lenet-model
+TRAIN_DIR=./tmp/lenet-model/test
+rm -r ${TRAIN_DIR}
+mkdir ${TRAIN_DIR}
 
 # Where the dataset is saved to.
 DATASET_DIR=~/tmp/mnist
@@ -32,13 +34,13 @@ python train_image_classifier.py \
   --max_number_of_steps=1000 \
   --batch_size=50 \
   --learning_rate=0.01 \
-  --save_interval_secs=60 \
-  --save_summaries_secs=60 \
+  --save_interval_secs=10 \
+  --save_summaries_secs=10 \
   --log_every_n_steps=100 \
   --optimizer=sgd \
   --learning_rate_decay_type=fixed \
   --weight_decay=0 \
-  --grad_quantizer=nearest,16,8
+  --intr_grad_quantizer=nearest,16,7
 
 # Run evaluation.
 python eval_image_classifier.py \

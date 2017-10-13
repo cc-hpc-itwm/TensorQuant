@@ -5,10 +5,12 @@ import QSGD
 
 from tensorflow.python.ops import standard_ops
 
-input_width = input_height = 20
-batch_size = 10
-input_channels = 10
-train_iterations = 5
+input_width = input_height =3
+batch_size = 1
+input_channels = 1
+train_iterations = 10
+fixed_size=16
+fixed_prec=8
 
 inputs_vals = np.arange(input_width*input_height*input_channels*batch_size).reshape(batch_size,input_width,input_height,input_channels)
 #inputs_vals = np.ones((batch_size,input_width,input_height,input_channels))
@@ -16,16 +18,18 @@ inputs_vals = np.arange(input_width*input_height*input_channels*batch_size).resh
 inputs = tf.Variable(inputs_vals,dtype=tf.float64)
 gold_inputs = tf.Variable(inputs_vals,dtype=tf.float64)
 
-quantizer=Quantizers.NoQuantizer()
-optimizer = QSGD.GradientDescentOptimizer(0.1)
-output = inputs * 2
-loss = output-inputs
+#quantizer=Quantizers.NoQuantizer()
+quantizer=Quantizers.FixedPointQuantizer_nearest(fixed_size,fixed_prec)
+
+optimizer = QSGD.GradientDescentOptimizer(0.1,quantizer=Quantizers.NoQuantizer())
+output = quantizer.quantize(inputs * 2)
+loss = tf.nn.l2_loss(output-inputs)
 grads_vars = optimizer.compute_gradients(loss)
 train = optimizer.apply_gradients(grads_vars)
 
 gold_optimizer = tf.train.GradientDescentOptimizer(0.1)
-gold_output = gold_inputs * 2
-gold_loss = gold_output-gold_inputs
+gold_output = quantizer.quantize(gold_inputs * 2)
+gold_loss = tf.nn.l2_loss(gold_output-gold_inputs)
 gold_grads_vars = gold_optimizer.compute_gradients(gold_loss)
 gold_train = gold_optimizer.apply_gradients(gold_grads_vars)
 
