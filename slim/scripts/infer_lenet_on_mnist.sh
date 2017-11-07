@@ -26,4 +26,5 @@ python eval_image_classifier.py \
   --batch_size=10 \
   --comment='Run Description.' \
   --intr_qmap=${TRAIN_DIR}/QMaps/intrinsic.json \
-  --extr_qmap=${TRAIN_DIR}/QMaps/extrinsic.json
+#  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \ 
+#  --extr_qmap=${TRAIN_DIR}/QMaps/extrinsic.json

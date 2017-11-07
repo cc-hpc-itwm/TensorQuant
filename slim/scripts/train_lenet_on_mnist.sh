@@ -40,8 +40,9 @@ python train_image_classifier.py \
   --optimizer=sgd \
   --learning_rate_decay_type=fixed \
   --weight_decay=0 \
-#  --intr_grad_quantizer=nearest,16,7 \
-#  --extr_qmap=./tmp/lenet-model/QMaps/extrinsic.json
+  --weight_qmap=./tmp/lenet-model/QMaps/weights.json \
+#  --intr_grad_quantizer=nearest,2,1 \
+
 
 # Run evaluation.
 python eval_image_classifier.py \
@@ -50,4 +51,5 @@ python eval_image_classifier.py \
   --dataset_name=mnist \
   --dataset_split_name=test \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=lenet
+  --model_name=lenet \
+  --weight_qmap=./tmp/lenet-model/QMaps/weights.json \

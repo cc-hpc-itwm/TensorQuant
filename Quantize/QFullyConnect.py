@@ -54,7 +54,7 @@ def fully_connected(inputs,
                     trainable=True,
                     scope=None,
                     quantizer=None,
-                    use_quantized_weights=True):
+                    weight_quantizer=None):
   """ """
   if not isinstance(num_outputs, six.integer_types):
     raise ValueError(
@@ -82,7 +82,7 @@ def fully_connected(inputs,
         _scope=sc,
         _reuse=reuse,
         quantizer=quantizer,
-        use_quantized_weights=use_quantized_weights)
+        weight_quantizer=weight_quantizer)
     outputs = layer.apply(inputs)
 
     # Add variables to collections.
@@ -121,7 +121,7 @@ class QDense(core_layers.Dense):
                trainable=True,
                name=None,
                quantizer=None,
-               use_quantized_weights=True,
+               weight_quantizer=None,
                **kwargs):
     super(QDense, self).__init__(units=units,
                activation=activation,
@@ -135,23 +135,22 @@ class QDense(core_layers.Dense):
                name=name,
                **kwargs)
     self.quantizer = quantizer
-    self.use_quantized_weights = use_quantized_weights
-    '''
-    def build(self, input_shape):
-        super(QDense,self).build(input_shape)
-        if self.quantizer is not None and self.use_quantized_weights:
-            self.kernel = self.quantizer.quantize(self.kernel)
-    '''
+    self.weight_quantizer = weight_quantizer
+
   # overridden call method
   def call(self, inputs):
     inputs = ops.convert_to_tensor(inputs, dtype=self.dtype)
     shape = inputs.get_shape().as_list()
     output_shape = shape[:-1] + [self.units]
 
-    if self.use_quantized_weights and self.quantizer is not None:
-            used_kernel = self.quantizer.quantize(self.kernel)
+    # quantize the weights, if there is an weight quantizer
+    if self.weight_quantizer is not None:
+        used_kernel = self.weight_quantizer.quantize(self.kernel)
     else:
-            used_kernel = self.kernel
+        used_kernel = self.kernel
+    # if intrinsic quantization, apply intr. quantization to weights, too!
+    if self.quantizer is not None:
+        used_kernel = self.quantizer.quantize(used_kernel)
 
     if len(output_shape) > 2:
       ## Broadcasting is required for the inputs.
@@ -162,7 +161,7 @@ class QDense(core_layers.Dense):
       raise ValueError('output_shape > 2 not supported for quantized operation, tried $d.' %(len(output_shape))) 
     else:
       if self.quantizer is None:
-        outputs = standard_ops.matmul(inputs, self.kernel)
+        outputs = standard_ops.matmul(inputs, used_kernel)
       else: # with quantization
         outputs = qmatmul(inputs, used_kernel, self.quantizer)
     #TODO: quantize after bias and activation

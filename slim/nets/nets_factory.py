@@ -87,7 +87,7 @@ arg_scopes_map = {'alexnet_v2': alexnet.alexnet_v2_arg_scope,
 
 
 def get_network_fn(name, num_classes, weight_decay=0.0, is_training=False,
-                   intr_q_map=None, extr_q_map=None):
+                   intr_q_map=None, extr_q_map=None, weight_q_map=None):
   """Returns a network_fn such as `logits, end_points = network_fn(images)`.
 
   Args:
@@ -109,9 +109,9 @@ def get_network_fn(name, num_classes, weight_decay=0.0, is_training=False,
   func = networks_map[name]
   
   conv2d = Factories.conv2d_factory(
-                intr_q_map=intr_q_map, extr_q_map=extr_q_map)
+                intr_q_map=intr_q_map, extr_q_map=extr_q_map, weight_q_map=weight_q_map)
   fully_connected = Factories.fully_connected_factory(
-                intr_q_map=intr_q_map, extr_q_map=extr_q_map)
+                intr_q_map=intr_q_map, extr_q_map=extr_q_map, weight_q_map=weight_q_map)
   max_pool2d = Factories.max_pool2d_factory(
                 intr_q_map=intr_q_map, extr_q_map=extr_q_map)
   avg_pool2d = Factories.avg_pool2d_factory(
@@ -142,7 +142,11 @@ def get_network_fn(name, num_classes, weight_decay=0.0, is_training=False,
         if 'fcnet' in name:
             return func(images, num_classes, is_training=is_training, reuse=reuse,
                     fully_connected=fully_connected)
+        if 'alexnet' in name:
+            return func(images, num_classes, is_training=is_training,
+                    conv2d=conv2d, fully_connected=fully_connected, max_pool2d=max_pool2d)
         else:
+            tf.logging.warn('Net %s not recognized! No quantization applied.'%name)
             return func(images, num_classes, is_training=is_training)
 
   if hasattr(func, 'default_image_size'):

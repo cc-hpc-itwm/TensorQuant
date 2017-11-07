@@ -57,7 +57,7 @@ def conv2d(inputs,
                 trainable=True,
                 scope=None,
                 quantizer=None,
-                use_quantized_weights = True):
+                weight_quantizer = None):
   """ function call from slim library.
   """
   if data_format not in [None, 'NWC', 'NCW', 'NHWC', 'NCHW', 'NDHWC', 'NCDHW']:
@@ -83,8 +83,6 @@ def conv2d(inputs,
           else 'channels_last')
     layer = layer_class(filters=num_outputs,
                         kernel_size=kernel_size,
-                        quantizer = quantizer,
-                        use_quantized_weights=use_quantized_weights,
                         strides=stride,
                         padding=padding,
                         data_format=df,
@@ -100,7 +98,9 @@ def conv2d(inputs,
                         name=sc.name,
                         dtype=inputs.dtype.base_dtype,
                         _scope=sc,
-                        _reuse=reuse)
+                        _reuse=reuse,
+                        quantizer = quantizer,
+                        weight_quantizer=weight_quantizer)
     outputs = layer.apply(inputs)
 
     # Add variables to collections.
@@ -130,8 +130,6 @@ class _QConv(convolutional._Conv):
     def __init__(self, rank,
                filters,
                kernel_size,
-               quantizer=None,      # quantizer object
-               use_quantized_weights=True,   # use quantized weights by quantizer
                strides=1,
                padding='valid',
                data_format='channels_last',
@@ -145,6 +143,8 @@ class _QConv(convolutional._Conv):
                activity_regularizer=None,
                trainable=True,
                name=None,
+               quantizer=None,      # intrinsic quantizer
+               weight_quantizer=None,   # quantizer for weights
                **kwargs):
         super(_QConv, self).__init__(rank,
                filters,
@@ -164,25 +164,23 @@ class _QConv(convolutional._Conv):
                name,
                **kwargs)
         self.quantizer = quantizer
-        self.use_quantized_weights = use_quantized_weights
-    '''
-    def build(self, input_shape):
-        super(_QConv,self).build(input_shape)
-        if self.quantizer is not None and self.use_quantized_weights:
-            self.quantized_kernel = self.quantizer.quantize(self.kernel)
-    '''
+        self.weight_quantizer = weight_quantizer
 
     def call(self, inputs):
-        if self.use_quantized_weights and self.quantizer is not None:
-                used_kernel = self.quantizer.quantize(self.kernel)
+        # quantize the weights, if there is an weight quantizer
+        if self.weight_quantizer is not None:
+                used_kernel = self.weight_quantizer.quantize(self.kernel)
         else:
                 used_kernel = self.kernel
+        # if intrinsic quantization, apply intr. quantization to weights, too!
+        if self.quantizer is not None:
+                used_kernel = self.quantizer.quantize(used_kernel)
 
         if self.rank == 2:          
           if self.quantizer is None:
             outputs = nn.convolution(
             input=inputs,
-            filter=self.kernel,
+            filter=used_kernel,
             dilation_rate=self.dilation_rate,
             strides=self.strides,
             padding=self.padding.upper(),
@@ -221,8 +219,6 @@ class QConv2D(_QConv):
 
   def __init__(self, filters,
                kernel_size,
-               quantizer = None,
-               use_quantized_weights = True,
                strides=(1, 1),
                padding='valid',
                data_format='channels_last',
@@ -236,13 +232,13 @@ class QConv2D(_QConv):
                activity_regularizer=None,
                trainable=True,
                name=None,
+               quantizer = None,
+               weight_quantizer = None,
                **kwargs):
     super(QConv2D, self).__init__(
         rank=2,
         filters=filters,
         kernel_size=kernel_size,
-        quantizer=quantizer,
-        use_quantized_weights = use_quantized_weights,
         strides=strides,
         padding=padding,
         data_format=data_format,
@@ -255,7 +251,10 @@ class QConv2D(_QConv):
         bias_regularizer=bias_regularizer,
         activity_regularizer=activity_regularizer,
         trainable=trainable,
-        name=name, **kwargs)
+        name=name, 
+        quantizer=quantizer,
+        weight_quantizer = weight_quantizer,
+        **kwargs)
 
 
 def q2dconvolution(input, filter, quantizer,  # pylint: disable=redefined-builtin

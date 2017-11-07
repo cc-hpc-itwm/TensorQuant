@@ -247,6 +247,10 @@ tf.app.flags.DEFINE_string(
     'extr_qmap', '', 'Location of extrinsic quantizer map.'
     'If empty, no quantizer is applied.')
 
+tf.app.flags.DEFINE_string(
+    'weight_qmap', '', 'Location of weight quantizer map.'
+    'If empty, no quantizer is applied.')
+
 
 
 def _configure_learning_rate(num_samples_per_epoch, global_step):
@@ -445,6 +449,7 @@ def main(_):
 
     intr_q_map=utils.quantizer_map(FLAGS.intr_qmap)
     extr_q_map=utils.quantizer_map(FLAGS.extr_qmap)
+    weight_q_map=utils.quantizer_map(FLAGS.weight_qmap)
 
     #######################
     # Config model_deploy #
@@ -474,7 +479,8 @@ def main(_):
         num_classes=(dataset.num_classes - FLAGS.labels_offset),
         weight_decay=FLAGS.weight_decay,
         is_training=True,
-        intr_q_map=intr_q_map, extr_q_map=extr_q_map)
+        intr_q_map=intr_q_map, extr_q_map=extr_q_map,
+        weight_q_map=weight_q_map)
 
     #####################################
     # Select the preprocessing function #

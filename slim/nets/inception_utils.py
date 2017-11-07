@@ -88,8 +88,8 @@ def inception_arg_scope(weight_decay=0.00004,
   with slim.arg_scope([slim.conv2d, slim.fully_connected,
                        QConv.conv2d, QFullyConnect.fully_connected],
                       weights_regularizer=slim.l2_regularizer(weight_decay)):
-   with slim.arg_scope([QConv.conv2d, QFullyConnect.fully_connected, QBatchNorm.batch_norm],
-                      use_quantized_weights=True):
+   with slim.arg_scope([QConv.conv2d, QFullyConnect.fully_connected, 
+                        QBatchNorm.batch_norm]):
     with slim.arg_scope(
         [slim.conv2d,
          QConv.conv2d],

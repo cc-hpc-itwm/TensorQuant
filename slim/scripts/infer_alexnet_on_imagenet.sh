@@ -19,4 +19,5 @@ python eval_image_classifier.py \
   --dataset_split_name=validation \
   --dataset_dir=${DATASET_DIR} \
   --model_name=alexnet_v2 \
-#  --max_num_batches=100
+  --max_num_batches=10 \
+  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \

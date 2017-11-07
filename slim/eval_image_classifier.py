@@ -24,19 +24,13 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+
 import utils
 
 from datasets import dataset_factory
 from nets import nets_factory
 from preprocessing import preprocessing_factory
 from tensorflow.python.client import device_lib
-
-#sys.path.append('../Quantize')
-from Quantize import QConv
-from Quantize import QFullyConnect
-from Quantize import QBatchNorm
-from Quantize import Factories
-from Quantize import Quantizers
 
 slim = tf.contrib.slim
 
@@ -104,6 +98,10 @@ tf.app.flags.DEFINE_string(
     'extr_qmap', '', 'Location of extrinsic quantizer map.'
     'If empty, no quantizer is applied.')
 
+tf.app.flags.DEFINE_string(
+    'weight_qmap', '', 'Location of weight quantizer map.'
+    'If empty, no quantizer is applied.')
+
 ###############################
 # Output File
 ###############################
@@ -137,6 +135,7 @@ def main(_):
     ########################
     intr_q_map=utils.quantizer_map(FLAGS.intr_qmap)
     extr_q_map=utils.quantizer_map(FLAGS.extr_qmap)
+    weight_q_map=utils.quantizer_map(FLAGS.weight_qmap)
     
     ####################
     # Select the model #
@@ -149,7 +148,8 @@ def main(_):
         FLAGS.model_name,
         num_classes=(dataset.num_classes - labels_offset),
         is_training=False,
-        intr_q_map=intr_q_map, extr_q_map=extr_q_map)
+        intr_q_map=intr_q_map, extr_q_map=extr_q_map,
+        weight_q_map=weight_q_map)
 
     ##############################################################
     # Create a dataset provider that loads data from the dataset #
