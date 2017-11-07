@@ -236,21 +236,16 @@ tf.app.flags.DEFINE_string(
     'intr_grad_quantizer', '', 'Word width and fractional digits of gradient quantizer.'
     'If None, no quantizer is applied. Passed as `w,q`.')
 
+###############################
+# Quantization
+###############################
 tf.app.flags.DEFINE_string(
-    'intr_quantizer', '', 'Word width and fractional digits of intrinsic quantizer.'
-    'If None, no intrinsic quantizer is applied. Passed as `w,q`.')
+    'intr_qmap', '', 'Location of intrinsic quantizer map.'
+    'If empty, no quantizer is applied.')
 
 tf.app.flags.DEFINE_string(
-    'extr_quantizer', '', 'Word width and fractional digits of extrinsic quantizer.'
-    'If None, no extrinsic quantizer is applied. Passed as `w,q`.')
-
-tf.app.flags.DEFINE_string(
-    'intr_quantize_layers', "", 'layer-types to be quantized intrinsically.'
-    'If "", no layer is quantized.')
-
-tf.app.flags.DEFINE_string(
-    'extr_quantize_layers', "", 'layer-types to be quantized extrinsically.'
-    'If "", no layer is quantized.')
+    'extr_qmap', '', 'Location of extrinsic quantizer map.'
+    'If empty, no quantizer is applied.')
 
 
 
@@ -294,7 +289,7 @@ def _configure_learning_rate(num_samples_per_epoch, global_step):
                      FLAGS.learning_rate_decay_type)
 
 
-def _configure_optimizer(learning_rate):
+def _configure_optimizer(learning_rate, quantizer=None):
   """Configures the optimizer used for training.
 
   Args:
@@ -306,9 +301,6 @@ def _configure_optimizer(learning_rate):
   Raises:
     ValueError: if FLAGS.optimizer is not recognized.
   """
-  intr_grad_quantizer= utils.quantizer_map(FLAGS.intr_grad_quantizer, 'grad')
-  if intr_grad_quantizer is not None:
-      intr_grad_quantizer=intr_grad_quantizer['grad']
 
   if FLAGS.optimizer == 'adadelta':
     optimizer = tf.train.AdadeltaOptimizer(
@@ -338,7 +330,7 @@ def _configure_optimizer(learning_rate):
         momentum=FLAGS.momentum,
         name='Momentum')
   elif FLAGS.optimizer == 'rmsprop':
-    if intr_grad_quantizer is None:
+    if quantizer is None:
       optimizer = tf.train.RMSPropOptimizer(
         learning_rate,
         decay=FLAGS.rmsprop_decay,
@@ -350,13 +342,13 @@ def _configure_optimizer(learning_rate):
         decay=FLAGS.rmsprop_decay,
         momentum=FLAGS.momentum,
         epsilon=FLAGS.opt_epsilon,
-        quantizer=intr_grad_quantizer)
+        quantizer=quantizer)
   elif FLAGS.optimizer == 'sgd':
-    if intr_grad_quantizer is None:
+    if quantizer is None:
         optimizer = tf.train.GradientDescentOptimizer(learning_rate)
     else:
         optimizer = QSGD.GradientDescentOptimizer(learning_rate,
-                                                quantizer=intr_grad_quantizer)
+                                                quantizer=quantizer)
   else:
     raise ValueError('Optimizer [%s] was not recognized', FLAGS.optimizer)
   return optimizer
@@ -439,17 +431,20 @@ def main(_):
     # Quantizers          #
     #######################
 
-    # little workaround to use quantizer_map to select single quantizer.
-    extr_grad_quantizer= utils.quantizer_map(FLAGS.extr_grad_quantizer, 'grad')
-    if extr_grad_quantizer is not None:
-        extr_grad_quantizer=extr_grad_quantizer['grad']
+    if FLAGS.intr_grad_quantizer is not '':
+        qtype, qargs= utils.split_quantizer_str(FLAGS.intr_grad_quantizer)
+        intr_grad_quantizer= utils.quantizer_selector(qtype, qargs)
+    else:
+        intr_grad_quantizer= None
 
-    intr_q_map=utils.quantizer_map(FLAGS.intr_quantizer, FLAGS.intr_quantize_layers)
-    if intr_q_map is not None:
-        intr_rounding, [intr_width, intr_prec] = utils.split_quantizer_str(FLAGS.intr_quantizer)
-    extr_q_map=utils.quantizer_map(FLAGS.extr_quantizer, FLAGS.extr_quantize_layers)
-    if extr_q_map is not None:    
-        extr_rounding, [extr_width, extr_prec] = utils.split_quantizer_str(FLAGS.extr_quantizer)
+    if FLAGS.extr_grad_quantizer is not '':
+        qtype, qargs= utils.split_quantizer_str(FLAGS.extr_grad_quantizer)
+        extr_grad_quantizer= utils.quantizer_selector(qtype, qargs)
+    else:
+        extr_grad_quantizer= None
+
+    intr_q_map=utils.quantizer_map(FLAGS.intr_qmap)
+    extr_q_map=utils.quantizer_map(FLAGS.extr_qmap)
 
     #######################
     # Config model_deploy #
@@ -575,7 +570,7 @@ def main(_):
     #########################################
     with tf.device(deploy_config.optimizer_device()):
       learning_rate = _configure_learning_rate(dataset.num_samples, global_step)
-      optimizer = _configure_optimizer(learning_rate)
+      optimizer = _configure_optimizer(learning_rate, intr_grad_quantizer)
       summaries.add(tf.summary.scalar('learning_rate', learning_rate))
 
     if FLAGS.sync_replicas:

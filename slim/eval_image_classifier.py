@@ -92,27 +92,27 @@ tf.app.flags.DEFINE_float(
 tf.app.flags.DEFINE_integer(
     'eval_image_size', None, 'Eval image size')
 
+
+###############################
+# Quantization
+###############################
 tf.app.flags.DEFINE_string(
-    'device', '/gpu:0', 'Device which the model will be placed on.')
+    'intr_qmap', '', 'Location of intrinsic quantizer map.'
+    'If empty, no quantizer is applied.')
 
 tf.app.flags.DEFINE_string(
-    'intr_quantizer', '', 'Word width and fractional digits of intrinsic quantizer.'
-    'If None, no intrinsic quantizer is applied. Passed as `w,q`.')
+    'extr_qmap', '', 'Location of extrinsic quantizer map.'
+    'If empty, no quantizer is applied.')
 
-tf.app.flags.DEFINE_string(
-    'extr_quantizer', '', 'Word width and fractional digits of extrinsic quantizer.'
-    'If None, no extrinsic quantizer is applied. Passed as `w,q`.')
-
-tf.app.flags.DEFINE_string(
-    'intr_quantize_layers', "", 'layer-types to be quantized intrinsically.'
-    'If `None`, no layer is quantized.')
-
-tf.app.flags.DEFINE_string(
-    'extr_quantize_layers', "", 'layer-types to be quantized extrinsically.'
-    'If `None`, no layer is quantized.')
-
+###############################
+# Output File
+###############################
 tf.app.flags.DEFINE_string(
     'output_file', None, 'File in which metrics output is safed.'
+    )
+
+tf.app.flags.DEFINE_string(
+    'comment', '', 'Optional comment for entry in output file.'
     )
 
 FLAGS = tf.app.flags.FLAGS
@@ -122,8 +122,7 @@ def main(_):
   if not FLAGS.dataset_dir:
     raise ValueError('You must supply the dataset directory with --dataset_dir')
 
-  tf.logging.set_verbosity(tf.logging.WARN) #can be WARN or INFO
-  #with tf.device(FLAGS.device):
+  tf.logging.set_verbosity(tf.logging.INFO) #can be WARN or INFO
   with tf.Graph().as_default():
     tf_global_step = slim.get_or_create_global_step()
 
@@ -136,20 +135,9 @@ def main(_):
     ########################
     # Determine Quantizers #
     ########################
-    intr_quant_width=0
-    intr_quant_prec=0
-    extr_quant_width=0
-    extr_quant_prec=0
-    intr_rounding=''
-    extr_rounding=''
+    intr_q_map=utils.quantizer_map(FLAGS.intr_qmap)
+    extr_q_map=utils.quantizer_map(FLAGS.extr_qmap)
     
-    intr_q_map=utils.quantizer_map(FLAGS.intr_quantizer, FLAGS.intr_quantize_layers)
-    if intr_q_map is not None:
-        intr_rounding, [intr_width, intr_prec] = utils.split_quantizer_str(FLAGS.intr_quantizer)
-    extr_q_map=utils.quantizer_map(FLAGS.extr_quantizer, FLAGS.extr_quantize_layers)
-    if extr_q_map is not None:    
-        extr_rounding, [extr_width, extr_prec] = utils.split_quantizer_str(FLAGS.extr_quantizer)
-
     ####################
     # Select the model #
     ####################
@@ -272,17 +260,17 @@ def main(_):
         hfile.write( '  "accuracy":%f,\n'%(metric_values[0]) )
         hfile.write( '  "net":"%s",\n'%(FLAGS.model_name) )
         hfile.write( '  "samples":%d,\n'%(num_batches*FLAGS.batch_size*used_gpus) )
-        hfile.write( '  "intr_q_w":%d,\n'%(intr_quant_width) )
-        hfile.write( '  "intr_q_f":%d,\n'%(intr_quant_prec) )
-        hfile.write( '  "intr_layers":"%s",\n'%(FLAGS.intr_quantize_layers) )
-        hfile.write( '  "intr_rounding":"%s",\n'%(intr_rounding) )
-        hfile.write( '  "extr_q_w":%d,\n'%(extr_quant_width) )
-        hfile.write( '  "extr_q_f":%d,\n'%(extr_quant_prec) )
-        hfile.write( '  "extr_layers":"%s",\n'%(FLAGS.extr_quantize_layers) )
-        hfile.write( '  "extr_rounding":"%s",\n'%(extr_rounding) )
+        hfile.write( '  "comment":%s,\n'%(FLAGS.comment) )
+#        hfile.write( '  "intr_q_w":%d,\n'%(intr_quant_width) )
+#        hfile.write( '  "intr_q_f":%d,\n'%(intr_quant_prec) )
+#        hfile.write( '  "intr_layers":"%s",\n'%(FLAGS.intr_quantize_layers) )
+#        hfile.write( '  "intr_rounding":"%s",\n'%(intr_rounding) )
+#        hfile.write( '  "extr_q_w":%d,\n'%(extr_quant_width) )
+#        hfile.write( '  "extr_q_f":%d,\n'%(extr_quant_prec) )
+#        hfile.write( '  "extr_layers":"%s",\n'%(FLAGS.extr_quantize_layers) )
+#        hfile.write( '  "extr_rounding":"%s",\n'%(extr_rounding) )
         hfile.write( '  "runtime":%f\n'%(runtime) )
         hfile.write( "}\n")
-    # Plot data
 
 if __name__ == '__main__':
   tf.app.run()

@@ -13,6 +13,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import json
 
 from datasets import dataset_factory
 from nets import nets_factory
@@ -97,28 +98,26 @@ def split_layers_str(layers_str):
         layers = []
     return layers
 
-
-def quantizer_map(quantizer_str, quantize_layers):
+def quantizer_map(qmap_file):
     """ Creates a Quantizer map. All specified layers share the same quantizer type.
     Args:
-        quantizer_str: A string specifying the quantizer.
-        quantize_layers: Comma seperated string or list of strings, specifying the layers.
+        qmap_file: Location of the .json file, which specifies the mapping.
     Returns:
         A dictionary containing the mapping from layers to quantizers.
     """
-    # make a list from the layers to be quantized
-    if type(quantize_layers) is str:
-        q_layers=split_layers_str(quantize_layers)
+    # load dictionary from json file.
+    # open file and parse data
+    if qmap_file is '':
+        return None
+    with open(qmap_file,'r') as hfile:
+        qmap = json.load(hfile)
 
-    # get the quantizer parameters
-    quantizer_type, arg_list = split_quantizer_str(quantizer_str)
-
-    # generate quantizer dictionary
-    if quantizer_type !='' and len(q_layers)!=0:
-        q_map={}
-        for key in q_layers:
-                q_map[key]=quantizer_selector(quantizer_type, arg_list)
-    else:
-        q_map=None
-    return q_map
+    # change strings in qmap into quantizer objects
+    for key in qmap:
+      if type(qmap[key]) is str:
+        # get the quantizer parameters
+        quantizer_type, arg_list = split_quantizer_str(qmap[key])
+        # generate quantizer object
+        qmap[key]=quantizer_selector(quantizer_type, arg_list)
+    return qmap
 

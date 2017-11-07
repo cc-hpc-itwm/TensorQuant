@@ -24,7 +24,6 @@ python eval_image_classifier.py \
   --model_name=lenet \
   --max_num_batches=10 \
   --batch_size=10 \
-  --intr_quantizer=nearest,16,8 \
-  --intr_quantize_layers=Le \
-#  --extr_quantizer=16,8 \
-#  --extr_quantize_layers= 
+  --comment='Run Description.' \
+  --intr_qmap=${TRAIN_DIR}/QMaps/intrinsic.json \
+  --extr_qmap=${TRAIN_DIR}/QMaps/extrinsic.json

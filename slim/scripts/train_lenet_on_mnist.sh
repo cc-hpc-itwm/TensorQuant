@@ -40,7 +40,8 @@ python train_image_classifier.py \
   --optimizer=sgd \
   --learning_rate_decay_type=fixed \
   --weight_decay=0 \
-  #--intr_grad_quantizer=nearest,16,7
+#  --intr_grad_quantizer=nearest,16,7 \
+#  --extr_qmap=./tmp/lenet-model/QMaps/extrinsic.json
 
 # Run evaluation.
 python eval_image_classifier.py \
