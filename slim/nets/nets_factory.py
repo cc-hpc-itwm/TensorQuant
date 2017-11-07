@@ -29,6 +29,7 @@ from nets import overfeat
 from nets import resnet_v1
 from nets import resnet_v2
 from nets import vgg
+from nets import fcnet
 
 import sys
 sys.path.append('/home/loroch/TensorFlow/TensorLib')
@@ -57,6 +58,7 @@ networks_map = {'alexnet_v2': alexnet.alexnet_v2,
                 'resnet_v2_101': resnet_v2.resnet_v2_101,
                 'resnet_v2_152': resnet_v2.resnet_v2_152,
                 'resnet_v2_200': resnet_v2.resnet_v2_200,
+                'fcnet': fcnet.fcnet,
                }
 
 arg_scopes_map = {'alexnet_v2': alexnet.alexnet_v2_arg_scope,
@@ -80,6 +82,7 @@ arg_scopes_map = {'alexnet_v2': alexnet.alexnet_v2_arg_scope,
                   'resnet_v2_101': resnet_v2.resnet_arg_scope,
                   'resnet_v2_152': resnet_v2.resnet_arg_scope,
                   'resnet_v2_200': resnet_v2.resnet_arg_scope,
+                  'fcnet': fcnet.fcnet_arg_scope,
                  }
 
 
@@ -136,6 +139,9 @@ def get_network_fn(name, num_classes, weight_decay=0.0, is_training=False,
         if 'resnet_v1' in name:
             return func(images, num_classes, is_training=is_training, reuse=reuse,
                     conv2d=conv2d, max_pool2d=max_pool2d)
+        if 'fcnet' in name:
+            return func(images, num_classes, is_training=is_training, reuse=reuse,
+                    fully_connected=fully_connected)
         else:
             return func(images, num_classes, is_training=is_training)
 

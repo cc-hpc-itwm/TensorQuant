@@ -4,6 +4,8 @@
 
 # Where the checkpoint and logs will be saved to.
 TRAIN_DIR=./tmp/alexnet-model/test
+rm -r ${TRAIN_DIR}
+mkdir ${TRAIN_DIR}
 
 # Name of Dataset
 DATASET_NAME=imagenet
@@ -16,7 +18,7 @@ echo "Start training"
 date
 echo "######################"
 # Run training.
-export CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0
 
 python train_image_classifier.py \
   --train_dir=${TRAIN_DIR} \
@@ -25,13 +27,14 @@ python train_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=alexnet_v2 \
   --preprocessing_name=alexnet_v2 \
-  --max_number_of_steps=1000 \
+  --max_number_of_steps=100 \
   --batch_size=128 \
-  --num_clones=2 \
+  --num_clones=1 \
   --num_preprocessing_threads=16 \
   --save_interval_secs=60 \
   --save_summaries_secs=60 \
-  --log_every_n_steps=1000 
+  --log_every_n_steps=1000 \
+  --intr_grad_quantizer=nearest,32,16
 
 echo "######################"
 echo "End training"

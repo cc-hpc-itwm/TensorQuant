@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from tensorflow.python.framework import ops
 
 round_module_zero = tf.load_op_library('../Kernels/RoundOp_zero.so') 
 round_module_down = tf.load_op_library('../Kernels/RoundOp_down.so') 
@@ -11,24 +12,36 @@ def round_zero(input1, fixed_size, fixed_prec):
         Rounds towards zero.'''
     result = round_module_zero.round_zero(input1,fixed_size=fixed_size,fixed_prec=fixed_prec)
     return result
+@ops.RegisterGradient("RoundZero")
+def _round_zero_grad(op, grad):
+  return [grad]
 
 def round_down(input1, fixed_size, fixed_prec):
     ''' Truncates input1 to a fixed point number. 
         Rounds down towards negative numbers.'''
     result = round_module_down.round_down(input1,fixed_size=fixed_size,fixed_prec=fixed_prec)
     return result
+@ops.RegisterGradient("RoundDown")
+def _round_down_grad(op, grad):
+  return [grad]
 
 def round_nearest(input1, fixed_size, fixed_prec):
     ''' Truncates input1 to a fixed point number. 
         Rounds towards the nearest number.'''
     result = round_module_nearest.round_nearest(input1,fixed_size=fixed_size,fixed_prec=fixed_prec)
     return result
+@ops.RegisterGradient("RoundNearest")
+def _round_nearest_grad(op, grad):
+  return [grad]
 
 def round_stochastic(input1, fixed_size, fixed_prec):
     ''' Truncates input1 to a fixed point number. 
         Rounds randomly, but the fractional part influences the probability.'''
     result = round_module_stochastic.round_stochastic(input1,fixed_size=fixed_size,fixed_prec=fixed_prec)
     return result
+@ops.RegisterGradient("RoundStochastic")
+def _round_stochastic_grad(op, grad):
+  return [grad]
 
 
 # Kernel-less functions
