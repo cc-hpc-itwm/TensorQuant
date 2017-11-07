@@ -28,6 +28,7 @@ from preprocessing import preprocessing_factory
 
 from Quantize import Quantizers
 from Quantize import QSGD
+from Quantize import QRMSProp
 
 import utils
 
@@ -337,14 +338,25 @@ def _configure_optimizer(learning_rate):
         momentum=FLAGS.momentum,
         name='Momentum')
   elif FLAGS.optimizer == 'rmsprop':
-    optimizer = tf.train.RMSPropOptimizer(
+    if intr_grad_quantizer is None:
+      optimizer = tf.train.RMSPropOptimizer(
         learning_rate,
         decay=FLAGS.rmsprop_decay,
         momentum=FLAGS.momentum,
         epsilon=FLAGS.opt_epsilon)
+    else:
+      optimizer = QRMSProp.RMSPropOptimizer(
+        learning_rate,
+        decay=FLAGS.rmsprop_decay,
+        momentum=FLAGS.momentum,
+        epsilon=FLAGS.opt_epsilon,
+        quantizer=intr_grad_quantizer)
   elif FLAGS.optimizer == 'sgd':
-    #optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-    optimizer = QSGD.GradientDescentOptimizer(learning_rate,quantizer=intr_grad_quantizer)
+    if intr_grad_quantizer is None:
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    else:
+        optimizer = QSGD.GradientDescentOptimizer(learning_rate,
+                                                quantizer=intr_grad_quantizer)
   else:
     raise ValueError('Optimizer [%s] was not recognized', FLAGS.optimizer)
   return optimizer

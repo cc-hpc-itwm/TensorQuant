@@ -22,10 +22,13 @@ python eval_image_classifier.py \
   --model_name=inception_v1 \
   --max_num_batches=10 \
   --batch_size=2 \
-  --extr_quantizer=nearest,16,8 \
-  --extr_quantize_layers=Inception
 #  --intr_quantizer=nearest,16,8 \
 #  --intr_quantize_layers=Inception \
+#  --extr_quantizer=nearest,16,8 \
+#  --extr_quantize_layers=Inception
+
+
+
 
 
 unset CUDA_VISIBLE_DEVICES
