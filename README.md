@@ -2,6 +2,7 @@
 
 A TensorFlow toolbox for Deep Neural Network Quantization
 
+Original paper: https://arxiv.org/abs/1710.05758
 
 ## Getting Started
 
@@ -46,3 +47,5 @@ See the READMEs in the subfolders to see further information on the toolbox.
 ## Authors
 
 Dominik Loroch (Fraunhofer ITWM)
+
+Please reference to [this](https://arxiv.org/abs/1710.05758) paper.
