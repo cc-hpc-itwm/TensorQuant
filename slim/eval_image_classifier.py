@@ -176,8 +176,7 @@ def main(_):
     # Define the model #
     ####################
     start_time_build = time.time()
-
-    # on single GPU:   
+ 
     images, labels = tf.train.batch(
         [image, label],
         batch_size=FLAGS.batch_size,
@@ -189,8 +188,9 @@ def main(_):
     labels = tf.squeeze(labels)
     used_gpus=1
     
+    #tf.logging.info('Number of parameters per layer and endpoint:')
     #for var in endpoints:
-    #    print(var)
+    #    tf.logging.info('%s: %d'%(var,utils.count_trainable_params('InceptionV3/'+var)))
     
     if FLAGS.moving_average_decay:
       variable_averages = tf.train.ExponentialMovingAverage(
@@ -233,6 +233,7 @@ def main(_):
     config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     #config.gpu_options.allocator_type = 'BFC'
     # Run Session
+
     print('Running %s for %d iterations'%(FLAGS.model_name,num_batches))
 
     start_time_simu = time.time()

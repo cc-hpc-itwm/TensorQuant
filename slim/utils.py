@@ -121,3 +121,26 @@ def quantizer_map(qmap_file):
         qmap[key]=quantizer_selector(quantizer_type, arg_list)
     return qmap
 
+def count_trainable_params(var_name):
+    '''
+    Counts the number of trainable variables.
+    '''
+    tot_nb_params = 0
+    for trainable_variable in tf.trainable_variables():
+        if var_name in trainable_variable.name:
+            shape = trainable_variable.get_shape() # e.g [D,F] or [W,H,C]
+            current_nb_params = get_nb_params_shape(shape)
+            tf.logging.info('%s: %d'%(trainable_variable.name, current_nb_params))
+            tot_nb_params = tot_nb_params + current_nb_params
+    return tot_nb_params
+
+def get_nb_params_shape(shape):
+    '''
+    Computes the total number of params for a given shap.
+    Works for any number of shapes etc [D,F] or [W,H,C] computes D*F and W*H*C.
+    '''
+    nb_params = 1
+    for dim in shape:
+        nb_params = nb_params*int(dim)
+    return nb_params 
+

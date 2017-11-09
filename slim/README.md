@@ -79,10 +79,16 @@ myDict={
 Notice that it is not necessary to specify the full scope name to quantize a layer. If a key in the dictionary fits multiple scope names, all of them will be quantized with the specified quantizer. This is a convenient method to quantize many layers simultaneously.
 Another method is provided by the utility function:
 ```
-intr_q_map=utils.quantizer_map('qName,qArgs', list_of_layers)
+intr_q_map=utils.quantizer_map('qMap_filename')
 ```
-It produces a dictionary, where all the layers specified in the list_of_layers will be assigned to a quantizer specified by the string 'qName,qArgs' (see 'utils.py' for more details on the arguments).
-You can use the second method with the scripts in the 'scripts/' directory by passing the flags 'extr/intr_quantizer' and 'extr/intr_quantize_layers'.
+It produces a dictionary according to the specified .json file 'qMap_filename'. The file can look like this:
+```
+{
+        'myNet/conv1' : 'nearest,16,8'
+        'max_pool2d' : 'zero,8,4'
+}
+```
+Available quantizers are listed in the utility function 'quantizer_selector'.
 
 If you do not want to use quantization, set the dictionaries to be None.
 
