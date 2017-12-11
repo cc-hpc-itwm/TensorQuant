@@ -42,8 +42,12 @@ class GradientDescentOptimizer(optimizer.Optimizer):
             use_locking=self._use_locking).op
     else: 
         lr = math_ops.cast(self._learning_rate_tensor, var.dtype.base_dtype)
+        '''
         delta = self.quantizer.quantize(
                 self.quantizer.quantize(grad)*self.quantizer.quantize(lr) )
+        new_var = self.quantizer.quantize(var - delta)
+        '''
+        delta = grad*lr
         new_var = self.quantizer.quantize(var - delta)
         return var.assign(new_var).op
   

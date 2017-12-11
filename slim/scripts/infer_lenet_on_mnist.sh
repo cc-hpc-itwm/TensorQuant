@@ -22,9 +22,9 @@ python eval_image_classifier.py \
   --dataset_split_name=test \
   --dataset_dir=${DATASET_DIR} \
   --model_name=lenet \
-  --max_num_batches=10 \
+  --max_num_batches=100 \
   --batch_size=10 \
   --comment='Run Description.' \
-  --intr_qmap=${TRAIN_DIR}/QMaps/intrinsic.json \
-#  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \ 
-#  --extr_qmap=${TRAIN_DIR}/QMaps/extrinsic.json
+  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \
+#  --extr_qmap=${TRAIN_DIR}/QMaps/weights.json \
+#  --intr_qmap=${TRAIN_DIR}/QMaps/weights.json

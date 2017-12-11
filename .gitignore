@@ -9,3 +9,5 @@ __pycache__
 *.o
 *.out
 startExpPipeline.sh
+*.log
+slim/*.sh

@@ -145,12 +145,17 @@ class QDense(core_layers.Dense):
 
     # quantize the weights, if there is an weight quantizer
     if self.weight_quantizer is not None:
+      with tf.variable_scope("quant_weights"):
         used_kernel = self.weight_quantizer.quantize(self.kernel)
+      with tf.variable_scope("quant_biases"):
+        used_bias = self.weight_quantizer.quantize(self.bias)
     else:
         used_kernel = self.kernel
+        used_bias = self.bias
     # if intrinsic quantization, apply intr. quantization to weights, too!
     if self.quantizer is not None:
         used_kernel = self.quantizer.quantize(used_kernel)
+        used_bias = self.quantizer.quantize(used_bias)
 
     if len(output_shape) > 2:
       ## Broadcasting is required for the inputs.
@@ -166,10 +171,11 @@ class QDense(core_layers.Dense):
         outputs = qmatmul(inputs, used_kernel, self.quantizer)
     #TODO: quantize after bias and activation
     if self.use_bias:
-      outputs = nn.bias_add(outputs, self.bias)
+      outputs = nn.bias_add(outputs, used_bias)
       if self.quantizer is not None:
         outputs = self.quantizer.quantize(outputs)
     if self.activation is not None:
+      # never called, since activation performed in upper hierarchy
       outputs= self.activation(outputs)  # pylint: disable=not-callable
       if self.quantizer is not None:
         outputs = self.quantizer.quantize(outputs)

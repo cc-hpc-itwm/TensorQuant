@@ -29,12 +29,15 @@ def fcnet(images, num_classes=10, is_training=False, reuse=None,
   end_points = {}
 
   with tf.variable_scope(scope, 'FCNet', [images, num_classes],reuse=reuse):
+        print(images)
         net = slim.flatten(images)
+        print(net)
         net = step_fn(net)
         #net = fully_connected(net, 1024, scope='fc1')
         #end_points['Flatten'] = net
         logits = fully_connected(net, num_classes, activation_fn=step_fn,
                                       scope='logits')
+        print(logits)
   end_points['Logits'] = logits
   end_points['Predictions'] = prediction_fn(logits, scope='Predictions')
 

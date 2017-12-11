@@ -4,7 +4,7 @@ TF_INC=$(shell python -c 'import tensorflow as tf; print(tf.sysconfig.get_includ
 CC=g++
 CFLAGS=-std=c++11 -shared -fPIC -I $(TF_INC) -O2 -D_GLIBCXX_USE_CXX11_ABI=0
 DEPS=
-OBJ=$(shell find . -name '*.cc' | sed 's/.cc/.so/g' | sed 's|./||g')
+OBJ=$(shell find . -maxdepth 1 -name '*.cc' | sed 's/.cc/.so/g' | sed 's|./||g')
 
 
 all: $(OBJ)

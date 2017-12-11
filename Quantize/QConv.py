@@ -168,14 +168,22 @@ class _QConv(convolutional._Conv):
 
     def call(self, inputs):
         # quantize the weights, if there is an weight quantizer
+        used_kernel=self.kernel
+        used_bias=self.bias
         if self.weight_quantizer is not None:
-                used_kernel = self.weight_quantizer.quantize(self.kernel)
-        else:
-                used_kernel = self.kernel
+              with tf.variable_scope("quant_weights"):
+                used_kernel = self.weight_quantizer.quantize(used_kernel)
+              with tf.variable_scope("quant_biases"):
+                if self.bias is not None:
+                    used_bias = self.weight_quantizer.quantize(used_bias)
+        #else:
+        #        used_kernel = self.kernel
+        #        used_bias = self.bias
         # if intrinsic quantization, apply intr. quantization to weights, too!
         if self.quantizer is not None:
                 used_kernel = self.quantizer.quantize(used_kernel)
-
+                if self.bias is not None:
+                    used_bias = self.quantizer.quantize(used_bias)
         if self.rank == 2:          
           if self.quantizer is None:
             outputs = nn.convolution(
@@ -202,13 +210,14 @@ class _QConv(convolutional._Conv):
           else:
             outputs = nn.bias_add(
                 outputs,
-                self.bias,
+                used_bias,
                 data_format=utils.convert_data_format(self.data_format, 4))
             # Note that we passed rank=4 because bias_add will only accept
             # NHWC and NCWH even if the rank of the inputs is 3 or 5.
         if self.quantizer is not None:         # quantize after activation
             outputs = self.quantizer.quantize(outputs)
         if self.activation is not None:
+          # never called, activation performed in upper hierarchy
           outputs = self.activation(outputs)
         return outputs
 

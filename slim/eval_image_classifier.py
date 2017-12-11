@@ -32,6 +32,8 @@ from nets import nets_factory
 from preprocessing import preprocessing_factory
 from tensorflow.python.client import device_lib
 
+EPS=0.000001
+
 slim = tf.contrib.slim
 
 tf.app.flags.DEFINE_integer(
@@ -230,27 +232,73 @@ def main(_):
         raise ValueError('No Checkpoint found!')
     tf.logging.info('Evaluating %s' % checkpoint_path)
 
+    # get the quantized weight tensors for sparsity estimation
+    variable_list = tf.trainable_variables()
+    # subtract ":0" from name
+    weights_list = [weight.name[:-2] for weight in variable_list if "weights" in weight.name]
+    biases_list = [bias.name[:-2] for bias in variable_list if "biases" in bias.name]
+    #tensor_list = [tensor.name for tensor in tf.get_default_graph().as_graph_def().node]
+    
+    weights_name_list = utils.get_variables_name_list('weights', weights_list)
+    biases_name_list = utils.get_variables_name_list('biases', biases_list)
+
+    weights_list = [ tf.get_default_graph().get_tensor_by_name(name+':0')
+                        for name in weights_name_list ]
+    biases_list = [ tf.get_default_graph().get_tensor_by_name(name+':0')
+                        for name in biases_name_list ]
+
+    # Run Session
     config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     #config.gpu_options.allocator_type = 'BFC'
-    # Run Session
-
+    final_op = (list(names_to_values.values()), 
+                       weights_list, biases_list )
     print('Running %s for %d iterations'%(FLAGS.model_name,num_batches))
-
     start_time_simu = time.time()
-    metric_values = slim.evaluation.evaluate_once(
+    run_values = slim.evaluation.evaluate_once(
         master=FLAGS.master,
         checkpoint_path=checkpoint_path,
         logdir=FLAGS.eval_dir,
         num_evals=num_batches,
         eval_op=list(names_to_updates.values()), 
-        final_op=list(names_to_values.values()),
+        final_op=final_op,
         variables_to_restore=variables_to_restore,
         session_config=config)
     runtime=time.time()-start_time_simu
     buildtime=start_time_simu-start_time_build
+    accuracy = run_values[0][0]
+    weight_values = run_values[1]
+    bias_values = run_values[2]
+
+    # compute sparsity
+    print('Calculating sparsity...')
+    weight_sparsity = utils.compute_sparsity(
+        np.concatenate([ array.flatten() for array in weight_values]) )
+    bias_sparsity = utils.compute_sparsity(
+        np.concatenate([ array.flatten() for array in bias_values]) )
+    weight_sparsity_layerwise = {}
+    for it in range(len(weights_name_list)):
+        name=weights_name_list[it]
+        weight_sparsity_layerwise[name] = utils.compute_sparsity(weight_values[it])
+    bias_sparsity_layerwise = {}
+    for it in range(len(biases_name_list)):
+        name=biases_name_list[it]
+        bias_sparsity_layerwise[name] = utils.compute_sparsity(bias_values[it])
+
+    # print statistics
+    print('\nStatistics:')
+    print('Accuracy: %.2f%%'%(accuracy*100))
     print('Buildtime: %f sec'%buildtime)
     print('Runtime: %f sec'%runtime)
-
+    print('Weight sparsity: %f%%'%(weight_sparsity*100))
+    print('Layerwise weight sparsity:')
+    for key in weight_sparsity_layerwise.keys():
+        print("     %s: %.2f%%"%(key, weight_sparsity_layerwise[key]*100))
+    print('Bias sparsity: %f%%'%(bias_sparsity*100))
+    print('Layerwise bias sparsity:')
+    for key in bias_sparsity_layerwise.keys():
+        print("     %s: %.2f%%"%(key, bias_sparsity_layerwise[key]*100))
+    print('Comment: %s'%(FLAGS.comment))
+   
     # tf.train.export_meta_graph(filename=FLAGS.checkpoint_path+'/model.meta')
 
     # write data to .json file
@@ -258,19 +306,13 @@ def main(_):
       print('Writing results to file %s'%(FLAGS.output_file))
       with open(FLAGS.output_file,'a') as hfile:
         hfile.write( "{\n")
-        hfile.write( '  "accuracy":%f,\n'%(metric_values[0]) )
+        hfile.write( '  "accuracy":%f,\n'%(accuracy) )
         hfile.write( '  "net":"%s",\n'%(FLAGS.model_name) )
         hfile.write( '  "samples":%d,\n'%(num_batches*FLAGS.batch_size*used_gpus) )
-        hfile.write( '  "comment":%s,\n'%(FLAGS.comment) )
-#        hfile.write( '  "intr_q_w":%d,\n'%(intr_quant_width) )
-#        hfile.write( '  "intr_q_f":%d,\n'%(intr_quant_prec) )
-#        hfile.write( '  "intr_layers":"%s",\n'%(FLAGS.intr_quantize_layers) )
-#        hfile.write( '  "intr_rounding":"%s",\n'%(intr_rounding) )
-#        hfile.write( '  "extr_q_w":%d,\n'%(extr_quant_width) )
-#        hfile.write( '  "extr_q_f":%d,\n'%(extr_quant_prec) )
-#        hfile.write( '  "extr_layers":"%s",\n'%(FLAGS.extr_quantize_layers) )
-#        hfile.write( '  "extr_rounding":"%s",\n'%(extr_rounding) )
-        hfile.write( '  "runtime":%f\n'%(runtime) )
+        hfile.write( '  "weight_sparse":%f,\n'%(weight_sparsity) )
+        hfile.write( '  "bias_sparse":%f,\n'%(bias_sparsity) )
+        hfile.write( '  "runtime":%f,\n'%(runtime) )
+        hfile.write( '  "comment":"%s"\n'%(FLAGS.comment) )
         hfile.write( "}\n")
 
 if __name__ == '__main__':

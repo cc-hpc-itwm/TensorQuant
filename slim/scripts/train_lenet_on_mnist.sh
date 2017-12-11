@@ -18,9 +18,9 @@ mkdir ${TRAIN_DIR}
 DATASET_DIR=~/tmp/mnist
 
 # Download the dataset
-python download_and_convert_data.py \
-  --dataset_name=mnist \
-  --dataset_dir=${DATASET_DIR}
+#python download_and_convert_data.py \
+#  --dataset_name=mnist \
+#  --dataset_dir=${DATASET_DIR}
 
 # Run training.
 export CUDA_VISIBLE_DEVICES=0
@@ -31,7 +31,7 @@ python train_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=lenet \
   --preprocessing_name=lenet \
-  --max_number_of_steps=1000 \
+  --max_number_of_steps=5000 \
   --batch_size=50 \
   --learning_rate=0.01 \
   --save_interval_secs=10 \
@@ -41,6 +41,8 @@ python train_image_classifier.py \
   --learning_rate_decay_type=fixed \
   --weight_decay=0 \
   --weight_qmap=./tmp/lenet-model/QMaps/weights.json \
+#  --intr_grad_quantizer=sparse,0.1 \
+# --weight_qmap=./tmp/lenet-model/QMaps/weights.json \
 #  --intr_grad_quantizer=nearest,2,1 \
 
 

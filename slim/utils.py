@@ -20,14 +20,9 @@ from nets import nets_factory
 from preprocessing import preprocessing_factory
 from tensorflow.python.client import device_lib
 
-'''
-from Quantize import QConv
-from Quantize import QFullyConnect
-from Quantize import QBatchNorm
-from Quantize import Factories
-'''
 from Quantize import Quantizers
 
+EPS=0.000001
 slim = tf.contrib.slim
 
 
@@ -51,6 +46,12 @@ def quantizer_selector(selector_str, arg_list):
     elif selector_str=="stochastic":
         quantizer = Quantizers.FixedPointQuantizer_stochastic(
                                     int(arg_list[0]), int(arg_list[1]) )
+    elif selector_str=="sparse":
+        quantizer = Quantizers.SparseQuantizer(
+                                    float(arg_list[0]) )
+    elif selector_str=="logarithmic":
+        quantizer = Quantizers.LogarithmicQuantizer(
+                                    )
     else:
         raise ValueError('Quantizer %s not recognized!'%(selector_str))
     return quantizer        
@@ -143,4 +144,32 @@ def get_nb_params_shape(shape):
     for dim in shape:
         nb_params = nb_params*int(dim)
     return nb_params 
+
+def compute_sparsity(data):
+    data=np.array(data)
+    data=data.flatten()
+    count=sum(abs(data)<=EPS)
+    sparsity=count/len(data)
+    return sparsity
+
+def get_variables_name_list(keyword, var_list):
+    _name_list = []
+    tensor_list = [tensor.name for tensor in tf.get_default_graph().as_graph_def().node]
+    for var in var_list:
+        quant_version_exists=0
+        for tensor in tensor_list:
+            # subtract the "weights"/"biases" from var name
+            if var[:-len(keyword)] in tensor and ("quant_"+keyword) in tensor:
+                quant_version_exists=1
+                if _name_list is []:
+                    _name_list = [tensor]
+                else:
+                    _name_list.append(tensor)
+        if quant_version_exists is 0:
+            if _name_list is []:
+                _name_list = [var]
+            else:
+                _name_list.append(var)
+    return _name_list
+
 

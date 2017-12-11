@@ -561,6 +561,25 @@ def main(_):
     for variable in slim.get_model_variables():
       summaries.add(tf.summary.histogram(variable.op.name, variable))
 
+    # Add summaries for quantized variables.
+    variable_list = tf.trainable_variables()
+    # subtract ":0" from name
+    weights_list = [weight.name[:-2] for weight in variable_list if "weights" in weight.name]
+    biases_list = [bias.name[:-2] for bias in variable_list if "biases" in bias.name]
+    
+    weights_name_list = utils.get_variables_name_list('weights', weights_list)
+    biases_name_list = utils.get_variables_name_list('biases', biases_list)
+
+    weights_list = [ tf.get_default_graph().get_tensor_by_name(name+':0')
+                        for name in weights_name_list ]
+    biases_list = [ tf.get_default_graph().get_tensor_by_name(name+':0')
+                        for name in biases_name_list ]
+
+    for weight in weights_list:
+      summaries.add(tf.summary.scalar('weight-sparsity/'+weight.name, tf.nn.zero_fraction(weight)))
+    for bias in biases_list:
+      summaries.add(tf.summary.scalar('weight-sparsity/'+bias.name, tf.nn.zero_fraction(bias)))
+
     #################################
     # Configure the moving averages #
     #################################
