@@ -1,8 +1,11 @@
 import tensorflow as tf
 from tensorflow.python.framework import ops
+import os
 
-quant_module_log = tf.load_op_library('../Kernels/QuantOp_log.so') 
-quant_module_sparse = tf.load_op_library('../Kernels/QuantOp_sparse.so') 
+local_dir = os.path.dirname(__file__)
+
+quant_module_log = tf.load_op_library(local_dir+'/../Kernels/QuantOp_log.so') 
+quant_module_sparse = tf.load_op_library(local_dir+'/../Kernels/QuantOp_sparse.so') 
 
 def quant_log(input1):
     '''Takes closest value of input to the form +/- 2^i.'''

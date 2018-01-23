@@ -23,7 +23,11 @@ def generic_factory(layer_function, q_layer_function,
         A function which can be called like a layer
     '''
     def func(*args,**kwargs):
-        layer_ID=tf.get_variable_scope().name + "/" + kwargs["scope"]
+        try:
+            name = "/"+kwargs["scope"]
+        except:
+            name = ''
+        layer_ID=tf.get_variable_scope().name + name
         is_quantized=False
         # Intrinsic quantization
         if intr_q_map is not None:

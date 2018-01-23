@@ -1,11 +1,14 @@
 import tensorflow as tf
 import numpy as np
 from tensorflow.python.framework import ops
+import os
 
-round_module_zero = tf.load_op_library('../Kernels/RoundOp_zero.so') 
-round_module_down = tf.load_op_library('../Kernels/RoundOp_down.so') 
-round_module_nearest = tf.load_op_library('../Kernels/RoundOp_nearest.so') 
-round_module_stochastic = tf.load_op_library('../Kernels/RoundOp_stochastic.so') 
+local_dir = os.path.dirname(__file__)
+
+round_module_zero = tf.load_op_library(local_dir+'/../Kernels/RoundOp_zero.so')
+round_module_down = tf.load_op_library(local_dir+'/../Kernels/RoundOp_down.so') 
+round_module_nearest = tf.load_op_library(local_dir+'/../Kernels/RoundOp_nearest.so') 
+round_module_stochastic = tf.load_op_library(local_dir+'/../Kernels/RoundOp_stochastic.so') 
 
 def round_zero(input1, fixed_size, fixed_prec):
     ''' Truncates input1 to a fixed point number. 

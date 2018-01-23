@@ -233,25 +233,39 @@ def main(_):
     tf.logging.info('Evaluating %s' % checkpoint_path)
 
     # get the quantized weight tensors for sparsity estimation
-    variable_list = tf.trainable_variables()
-    # subtract ":0" from name
-    weights_list = [weight.name[:-2] for weight in variable_list if "weights" in weight.name]
-    biases_list = [bias.name[:-2] for bias in variable_list if "biases" in bias.name]
-    #tensor_list = [tensor.name for tensor in tf.get_default_graph().as_graph_def().node]
-    
-    weights_name_list = utils.get_variables_name_list('weights', weights_list)
-    biases_name_list = utils.get_variables_name_list('biases', biases_list)
+    weights_name_list, weights_list = utils.get_variables_list('weights')
+    biases_name_list, biases_list = utils.get_variables_list('biases')
 
-    weights_list = [ tf.get_default_graph().get_tensor_by_name(name+':0')
-                        for name in weights_name_list ]
-    biases_list = [ tf.get_default_graph().get_tensor_by_name(name+':0')
-                        for name in biases_name_list ]
+    # get zero fraction for each layer
+    weights_layerwise_sparsity=[ tf.nn.zero_fraction(x) for x in weights_list]
+    biases_layerwise_sparsity=[ tf.nn.zero_fraction(x) for x in biases_list]
+
+    # add overall weights sparsity to summary
+    weights_overall_sparsity=[ tf.reshape(x,[tf.size(x)]) for x in weights_list]
+    weights_overall_sparsity=tf.concat(weights_overall_sparsity,axis=0)
+    summary_name = 'eval/weight_overall_sparsity'
+    weights_overall_sparsity=tf.nn.zero_fraction(weights_overall_sparsity)
+    op = tf.summary.scalar(summary_name, weights_overall_sparsity, collections=[])
+    op = tf.Print(op, [value], summary_name)
+    tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+
+    # add overall bias sparsity to summary
+    biases_overall_sparsity=[ tf.reshape(x,[tf.size(x)]) for x in biases_list]
+    biases_overall_sparsity=tf.concat(biases_overall_sparsity,axis=0)
+    summary_name = 'eval/biases_overall_sparsity'
+    biases_overall_sparsity=tf.nn.zero_fraction(biases_overall_sparsity)
+    op = tf.summary.scalar(summary_name, biases_overall_sparsity, collections=[])
+    op = tf.Print(op, [value], summary_name)
+    tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
 
     # Run Session
     config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     #config.gpu_options.allocator_type = 'BFC'
+
+    # Final ops, used for statistics
     final_op = (list(names_to_values.values()), 
-                       weights_list, biases_list )
+                       weights_layerwise_sparsity, biases_layerwise_sparsity,
+                       weights_overall_sparsity, biases_overall_sparsity )
     print('Running %s for %d iterations'%(FLAGS.model_name,num_batches))
     start_time_simu = time.time()
     run_values = slim.evaluation.evaluate_once(
@@ -268,21 +282,25 @@ def main(_):
     accuracy = run_values[0][0]
     weight_values = run_values[1]
     bias_values = run_values[2]
+    weight_sparsity=run_values[3]
+    bias_sparsity=run_values[4]
 
     # compute sparsity
     print('Calculating sparsity...')
+    '''
     weight_sparsity = utils.compute_sparsity(
         np.concatenate([ array.flatten() for array in weight_values]) )
     bias_sparsity = utils.compute_sparsity(
         np.concatenate([ array.flatten() for array in bias_values]) )
+    '''
     weight_sparsity_layerwise = {}
     for it in range(len(weights_name_list)):
         name=weights_name_list[it]
-        weight_sparsity_layerwise[name] = utils.compute_sparsity(weight_values[it])
+        weight_sparsity_layerwise[name] = weight_values[it]
     bias_sparsity_layerwise = {}
     for it in range(len(biases_name_list)):
         name=biases_name_list[it]
-        bias_sparsity_layerwise[name] = utils.compute_sparsity(bias_values[it])
+        bias_sparsity_layerwise[name] = bias_values[it]
 
     # print statistics
     print('\nStatistics:')

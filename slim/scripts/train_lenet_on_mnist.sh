@@ -31,7 +31,7 @@ python train_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=lenet \
   --preprocessing_name=lenet \
-  --max_number_of_steps=5000 \
+  --max_number_of_steps=1000 \
   --batch_size=50 \
   --learning_rate=0.01 \
   --save_interval_secs=10 \

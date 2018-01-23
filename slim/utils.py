@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import time
 import json
 
-from datasets import dataset_factory
-from nets import nets_factory
-from preprocessing import preprocessing_factory
+#from datasets import dataset_factory
+#from nets import nets_factory
+#from preprocessing import preprocessing_factory
 from tensorflow.python.client import device_lib
 
 from Quantize import Quantizers
@@ -152,24 +152,146 @@ def compute_sparsity(data):
     sparsity=count/len(data)
     return sparsity
 
-def get_variables_name_list(keyword, var_list):
-    _name_list = []
+def get_variables_list(keyword):
+    '''
+    Returns a list with the names of the quantized variables and 
+    a list with the tensors of the quantized variables. If there
+    is no quantized version, the regular variable is used.
+    Arg:
+        keyword: either 'weights' or 'biases'
+    Returns:
+        Two lists as described above.
+    '''
+    variable_list = tf.trainable_variables()
     tensor_list = [tensor.name for tensor in tf.get_default_graph().as_graph_def().node]
-    for var in var_list:
+    # subtract ":0" from name
+    key_list = [key.name[:-2] for key in variable_list if keyword in key.name]
+    key_name_list = []
+    for var in key_list:
         quant_version_exists=0
         for tensor in tensor_list:
             # subtract the "weights"/"biases" from var name
             if var[:-len(keyword)] in tensor and ("quant_"+keyword) in tensor:
                 quant_version_exists=1
-                if _name_list is []:
-                    _name_list = [tensor]
+                if key_name_list is []:
+                    key_name_list = [tensor]
                 else:
-                    _name_list.append(tensor)
+                    key_name_list.append(tensor)
         if quant_version_exists is 0:
-            if _name_list is []:
-                _name_list = [var]
+            if key_name_list is []:
+                key_name_list = [var]
             else:
-                _name_list.append(var)
-    return _name_list
+                key_name_list.append(var)
+    key_tensor_list = [ tf.get_default_graph().get_tensor_by_name(name+':0')
+                        for name in key_name_list ]
+    return key_name_list, key_tensor_list
+
+def heatmap_conv(kernel, pad = 1):
+
+    '''Visualize conv features as an image (mostly for the 1st layer).
+    Place kernel into a grid, with some paddings between adjacent filters.
+
+    see: gist.github.com/kukuruza/03731dc494603ceab0c5
+
+    Args:
+    kernel: tensor of shape [height, width, NumChannels, NumKernels]     
+    pad: number of black pixels around each filter (between them)
+
+    Return:
+    Tensor of shape [batch=NumChannels,
+                (Y+2*pad)*grid_Y, (X+2*pad)*grid_X, NumChannels=3].
+    '''
+
+    def factorization(n):
+        for i in range(int(math.sqrt(float(n))), 0, -1):
+            if n % i == 0:
+                return (i, int(n / i))
+
+    (grid_Y, grid_X) = factorization (kernel.get_shape().dims[3].value)
+    # scale weights to [-1,1]
+    #x_min = tf.reduce_min(kernel)
+    x_max = tf.reduce_max(tf.abs(kernel))
+    kernel = (kernel) / (x_max)
+    kernel_height = kernel.get_shape().dims[0].value
+    kernel_width = kernel.get_shape().dims[1].value
+    kernel_channels = kernel.get_shape().dims[2].value
+    kernel_features = kernel.get_shape().dims[3].value
+    #kernel shape: [height, width, channels, features]
+
+    red_channel = (tf.ones_like(kernel)-tf.to_float(kernel>0)*kernel)
+    green_channel = (tf.ones_like(kernel)-tf.abs(kernel))
+    blue_channel = (tf.ones_like(kernel)+tf.to_float(kernel<0)*kernel)
+    kernel = tf.transpose(tf.stack([red_channel,green_channel,blue_channel]), (4,1,2,3,0))
+    #kernel shape: [features, height, width, channels, rgb]
+    # channels will be the batch, rgb are the color channels. 
+    # features will be reduced to single image
+
+    # pad X and Y
+    kernel = tf.pad(kernel, tf.constant( 
+    [[0,0],[pad,pad],[pad, pad],[0,0],[0,0]] ), mode = 'CONSTANT')
+    tile_height= kernel.get_shape().dims[1].value
+    tile_width= kernel.get_shape().dims[2].value
+    # 2*pad added to height and width
+
+    # organize grid on Y axis
+    kernel = tf.reshape(kernel, tf.stack([grid_X, tile_height * grid_Y, 
+                                        tile_width, kernel_channels, 3]))
+    # switch X and Y axes
+    kernel = tf.transpose(kernel, (0, 2, 1, 3, 4))
+    #kernel shape: [features, width, height, channels, rgb]
+    # organize grid on X axis, drop 5th dimension
+    kernel = tf.reshape(kernel, tf.stack([tile_width * grid_X, tile_height * grid_Y, 
+                                            kernel_channels, 3]))
+    kernel = tf.transpose(kernel, (2, 1, 0, 3))
+    #kernel shape: [channels, height, width, rgb]
+
+    '''
+    # resize image, for better visibility
+    old_shape = kernel.get_shape().as_list()
+    new_shape = tf.stack([4*old_shape[1], 4*old_shape[2]])
+    kernel = tf.image.resize_nearest_neighbor(kernel, new_shape, align_corners=True)
+    '''
+    return kernel
+
+
+def heatmap_fullyconnect(kernel, pad = 1):
+    '''Visualize fc-layer as an image.
+
+    Args:
+        kernel: tensor of shape [kernel_inputs, kernel_outputs]   
+        pad: number of black pixels around filter
+
+    Return:
+    Tensor of shape [batch=1,
+                kernel_inputs, kernel_outputs, NumChannels=3].
+    '''
+
+    # scale weights to [-1,1]
+    x_max = tf.reduce_max(tf.abs(kernel))
+    kernel = (kernel) / (x_max)
+    kernel_height = kernel.get_shape().dims[0].value
+    kernel_width = kernel.get_shape().dims[1].value
+    #kernel shape: [height, width]
+
+    red_channel = (tf.ones_like(kernel)-tf.to_float(kernel>0)*kernel)
+    green_channel = (tf.ones_like(kernel)-tf.abs(kernel))
+    blue_channel = (tf.ones_like(kernel)+tf.to_float(kernel<0)*kernel)
+    kernel = tf.transpose(tf.stack([red_channel,green_channel,blue_channel]), (1,2,0))
+    # kernel shape: [height, width, rgb]
+    # add dimension for batch
+    kernel = tf.reshape(kernel, tf.stack([1,kernel_height, kernel_width,3]))
+    # kernel shape: [batch, height, width, rgb]
+
+    # pad X and Y
+    kernel = tf.pad(kernel, tf.constant( 
+    [[0,0],[pad,pad],[pad, pad],[0,0]]), mode = 'CONSTANT')
+    
+    '''
+    # resize image, for better visibility
+    old_shape = kernel.get_shape().as_list()
+    new_shape = tf.stack([4*old_shape[1], 4*old_shape[2]])
+    kernel = tf.image.resize_nearest_neighbor(kernel, new_shape, align_corners=True)
+    '''
+    return kernel
 
 

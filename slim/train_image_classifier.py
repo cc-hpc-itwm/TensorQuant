@@ -561,25 +561,46 @@ def main(_):
     for variable in slim.get_model_variables():
       summaries.add(tf.summary.histogram(variable.op.name, variable))
 
-    # Add summaries for quantized variables.
-    variable_list = tf.trainable_variables()
-    # subtract ":0" from name
-    weights_list = [weight.name[:-2] for weight in variable_list if "weights" in weight.name]
-    biases_list = [bias.name[:-2] for bias in variable_list if "biases" in bias.name]
-    
-    weights_name_list = utils.get_variables_name_list('weights', weights_list)
-    biases_name_list = utils.get_variables_name_list('biases', biases_list)
-
-    weights_list = [ tf.get_default_graph().get_tensor_by_name(name+':0')
-                        for name in weights_name_list ]
-    biases_list = [ tf.get_default_graph().get_tensor_by_name(name+':0')
-                        for name in biases_name_list ]
-
+    # Add summaries for sparsity.
+    weights_name_list, weights_list = utils.get_variables_list('weights')
+    biases_name_list, biases_list = utils.get_variables_list('biases')
     for weight in weights_list:
       summaries.add(tf.summary.scalar('weight-sparsity/'+weight.name, tf.nn.zero_fraction(weight)))
     for bias in biases_list:
       summaries.add(tf.summary.scalar('weight-sparsity/'+bias.name, tf.nn.zero_fraction(bias)))
-
+    # summaries for overall sparsity  
+    if weights_list is not []:    
+        weights_overall_sparsity=[ tf.reshape(x,[tf.size(x)]) for x in weights_list]
+        weights_overall_sparsity=tf.concat(weights_overall_sparsity,axis=0)
+        summaries.add(tf.summary.scalar('weight-sparsity/weights-overall', 
+                                tf.nn.zero_fraction(weights_overall_sparsity)))
+    if biases_list is not []:
+        biases_overall_sparsity=[ tf.reshape(x,[tf.size(x)]) for x in biases_list]
+        biases_overall_sparsity=tf.concat(biases_overall_sparsity,axis=0)
+        summaries.add(tf.summary.scalar('weight-sparsity/biases-overall', 
+                                tf.nn.zero_fraction(biases_overall_sparsity)))
+    
+    # Add layerwise weight heatmaps
+    for it in range(len(weights_name_list)):
+        name = weights_name_list[it]
+        weight = weights_list[it]
+        if weight.get_shape().ndims == 4:
+            image = utils.heatmap_conv(weight, pad = 1)
+        elif weight.get_shape().ndims == 2:
+            image = utils.heatmap_fullyconnect(weight, pad = 1)
+        else:
+            continue
+        summaries.add(tf.summary.image(name, image)) 
+        '''
+        if 'conv' in name:
+            weight = weights_list[it]
+            image = utils.heatmap_conv(weight, pad = 1)
+            summaries.add(tf.summary.image(name, image)) 
+        if 'fc' in name:
+            weight = weights_list[it]
+            image = utils.heatmap_fullyconnect(weight, pad = 1)
+            summaries.add(tf.summary.image(name, image)) 
+        '''
     #################################
     # Configure the moving averages #
     #################################
@@ -622,14 +643,17 @@ def main(_):
         var_list=variables_to_train)
     # Add total_loss to summary.
     summaries.add(tf.summary.scalar('total_loss', total_loss))
-    # Add gradients
-    for gv in clones_gradients:
-        summaries.add(tf.summary.histogram('gradient/%s'%gv[1].op.name, gv[0]))
 
     # Create gradient updates.
     # quantize 'clones_gradients'
     if extr_grad_quantizer is not None:
         clones_gradients=[(extr_grad_quantizer.quantize(gv[0]),gv[1]) for gv in clones_gradients]
+    
+    # Add gradients to summary
+    for gv in clones_gradients:
+        summaries.add(tf.summary.histogram('gradient/%s'%gv[1].op.name, gv[0]))
+        summaries.add(tf.summary.scalar('gradient-sparsity/%s'%gv[1].op.name, 
+                                    tf.nn.zero_fraction(gv[0])))
 
     grad_updates = optimizer.apply_gradients(clones_gradients,
                                              global_step=global_step)
