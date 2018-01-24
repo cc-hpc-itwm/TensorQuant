@@ -24,6 +24,8 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import json
+import os
 
 import utils
 
@@ -31,8 +33,6 @@ from datasets import dataset_factory
 from nets import nets_factory
 from preprocessing import preprocessing_factory
 from tensorflow.python.client import device_lib
-
-EPS=0.000001
 
 slim = tf.contrib.slim
 
@@ -321,17 +321,23 @@ def main(_):
 
     # write data to .json file
     if FLAGS.output_file is not None:
-      print('Writing results to file %s'%(FLAGS.output_file))
-      with open(FLAGS.output_file,'a') as hfile:
-        hfile.write( "{\n")
-        hfile.write( '  "accuracy":%f,\n'%(accuracy) )
-        hfile.write( '  "net":"%s",\n'%(FLAGS.model_name) )
-        hfile.write( '  "samples":%d,\n'%(num_batches*FLAGS.batch_size*used_gpus) )
-        hfile.write( '  "weight_sparse":%f,\n'%(weight_sparsity) )
-        hfile.write( '  "bias_sparse":%f,\n'%(bias_sparsity) )
-        hfile.write( '  "runtime":%f,\n'%(runtime) )
-        hfile.write( '  "comment":"%s"\n'%(FLAGS.comment) )
-        hfile.write( "}\n")
+        if os.path.exists(FLAGS.output_file) == False:
+            json_data = []
+        else:
+            with open(FLAGS.output_file) as hfile:
+                json_data = json.load(hfile)
+        new_data={}
+        new_data["accuracy"]=accuracy.tolist()
+        new_data["net"]=FLAGS.model_name
+        new_data["samples"]=(num_batches*FLAGS.batch_size*used_gpus)
+        new_data["weight_sparse"]=weight_sparsity.tolist()
+        new_data["bias_sparse"]=bias_sparsity.tolist()
+        new_data["runtime"]=runtime
+        new_data["comment"]=FLAGS.comment
+
+        json_data.append(new_data)
+        with open(FLAGS.output_file,'w') as hfile:
+            json.dump(json_data, hfile)
 
 if __name__ == '__main__':
   tf.app.run()

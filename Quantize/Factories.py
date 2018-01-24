@@ -66,6 +66,26 @@ def generic_factory(layer_function, q_layer_function,
             return net
     return func
 
+def extr_only_generic_factory(layer_function, intr_q_map = None, extr_q_map=None):
+    ''' Generic function for layer factories, where intrinsic quantization is not possible.
+        
+    Args:
+        layer_function: The layer to be applied.
+        intr_q_map: Dictionary containing mapping from layers to quantizers 
+                    for intrinsic quantization. Instead of intr. quantization, 
+                    extr. is applied.
+        extr_q_map: Dictionary containing mapping from layers to quantizers 
+                    for extrinsic quantization.
+    Returns:
+        A function which can be called like a layer
+    '''
+    _extr_q_map= dict(extr_q_map) if extr_q_map is not None else {}
+    if intr_q_map is not None:
+        _extr_q_map.update(intr_q_map)
+    if _extr_q_map == {}:
+        _extr_q_map=None
+    return generic_factory(layer_function, layer_function, 
+                           intr_q_map=None, extr_q_map=_extr_q_map) 
 
 def conv2d_factory(intr_q_map=None, extr_q_map=None, weight_q_map=None):
     return generic_factory(slim.conv2d, QConv.conv2d, 
@@ -81,13 +101,8 @@ def fully_connected_factory(intr_q_map=None, extr_q_map=None, weight_q_map=None)
 def max_pool2d_factory(intr_q_map=None, extr_q_map=None):
     # this layer has no intrinsic quantization.
     # apply extrinsic quantization in either case 
-    _extr_q_map= dict(extr_q_map) if extr_q_map is not None else {}
-    if intr_q_map is not None:
-        _extr_q_map.update(intr_q_map)
-    if _extr_q_map == {}:
-        _extr_q_map=None
-    return generic_factory(slim.max_pool2d, slim.max_pool2d, 
-                           intr_q_map=None, extr_q_map=_extr_q_map)  
+    return extr_only_generic_factory(slim.max_pool2d, 
+                           intr_q_map=None, extr_q_map=extr_q_map)  
 
 
 def avg_pool2d_factory(intr_q_map=None, extr_q_map=None):

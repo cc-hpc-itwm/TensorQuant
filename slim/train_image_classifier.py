@@ -591,16 +591,7 @@ def main(_):
         else:
             continue
         summaries.add(tf.summary.image(name, image)) 
-        '''
-        if 'conv' in name:
-            weight = weights_list[it]
-            image = utils.heatmap_conv(weight, pad = 1)
-            summaries.add(tf.summary.image(name, image)) 
-        if 'fc' in name:
-            weight = weights_list[it]
-            image = utils.heatmap_fullyconnect(weight, pad = 1)
-            summaries.add(tf.summary.image(name, image)) 
-        '''
+
     #################################
     # Configure the moving averages #
     #################################

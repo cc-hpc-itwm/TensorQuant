@@ -295,3 +295,5 @@ def heatmap_fullyconnect(kernel, pad = 1):
     return kernel
 
 
+
+
