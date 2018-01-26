@@ -75,6 +75,21 @@ class SparseQuantizer(Quantizer_if):
         return Wrapped.quant_sparse(tensor, self.threshold)
 
 ###############################
+### Half-precision floating point 
+###############################
+class HalffpQuantizer(Quantizer_if):
+    """FP16 quantization. Rounds a floating point number into a half-precision one.
+       Uses c-kernel for quantization. 
+    """
+    def __init__(self):
+        pass
+    def quantize(self,tensor):
+        # TF alternative (rounding mantissa):
+        return tf.cast(tensor,tf.float16)
+        # kernel alternative (cutting off mantissa):
+        # return Wrapped.quant_halffp(tensor)
+
+###############################
 ### Other
 ###############################
 class NoQuantizer(Quantizer_if):
