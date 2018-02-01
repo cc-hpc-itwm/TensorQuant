@@ -321,6 +321,8 @@ def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
         filters: [filter_height, filter_width, input_channels, output_channels]
         quantizer: Quantizer object, has interface '.quantize(tensor)'       
     '''
+    PARALLEL_ITERATIONS=1 # number of convolution ops which can run in parallel.
+
     if data_format not in ("NHWC", None):
         raise ValueError("data_format other than NHWC not supported in quantized convolution, tried: %s"%(data_format))
     
@@ -383,7 +385,7 @@ def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
                 shape_invariants=[ out_filter.get_shape(), tf.TensorShape(
                     [1,output_patch.shape.dims[1].value,output_patch.shape.dims[2].value,None]),
                     output_patch.get_shape() ],
-                parallel_iterations=10,
+                parallel_iterations=PARALLEL_ITERATIONS,
                 swap_memory=True )[1]
         # concatenate batches (along axis 0).
         # remove first placeholder element from outputs!
@@ -402,7 +404,7 @@ def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
     result = tf.while_loop( outer_cond, outer_body, [batch, result],
                 shape_invariants=[ batch.get_shape(), tf.TensorShape(
                     [None,patch_shape.dims[1].value,patch_shape.dims[2].value,filter_shape.dims[3]]) ],
-                parallel_iterations=10,
+                parallel_iterations=PARALLEL_ITERATIONS,
                 swap_memory=True )[1]
     # remove first element from placeholder!
     output = result[1:,:,:,:]

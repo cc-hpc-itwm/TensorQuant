@@ -26,6 +26,6 @@ python eval_image_classifier.py \
   --batch_size=10 \
   --output_file=./experiment_results/test_$$.json \
   --comment='Run Description.' \
-  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \
+#  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \
 #  --extr_qmap=${TRAIN_DIR}/QMaps/weights.json \
 #  --intr_qmap=${TRAIN_DIR}/QMaps/weights.json

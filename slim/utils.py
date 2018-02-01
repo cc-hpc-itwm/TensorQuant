@@ -14,6 +14,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import json
+import re
+import os
 
 #from datasets import dataset_factory
 #from nets import nets_factory
@@ -294,6 +296,32 @@ def heatmap_fullyconnect(kernel, pad = 1):
     '''
     return kernel
 
+def get_vals_from_comments(key, val_re, data):
+    '''
+        val_re must be a string in brackets!
+    '''
+    _list = []
+    for x in data:
+        _regex = re.compile(key+'='+val_re)
+        tokens = _regex.search(x['comment'])
+        if tokens is None:
+            x[key] = None
+            continue
+        val = tokens.group(1)
+        try:
+            val=float(val)
+        except:
+            pass
+        x[key] = val
+        if val not in _list:
+            _list.append(val)
+    #_list=sorted(_list)
+    return _list
 
+def remove_file(filename):
+    try:
+        os.remove(filename)
+    except OSError:
+        pass
 
 

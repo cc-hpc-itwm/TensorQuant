@@ -23,5 +23,7 @@ python eval_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=alexnet_v2 \
   --max_num_batches=2 \
-  --weight_qmap=./tmp/alexnet-model/QMaps/weights.json \
-  --extr_qmap=./tmp/alexnet-model/QMaps/weights.json \
+  --output_file=experiment_results/alexnet_test_$$.json \
+  --comment="baseline-test" \
+  #--weight_qmap=./tmp/alexnet-model/QMaps/weights.json \
+  #--extr_qmap=./tmp/alexnet-model/QMaps/weights.json \
