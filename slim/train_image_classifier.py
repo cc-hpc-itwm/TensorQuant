@@ -545,6 +545,10 @@ def main(_):
     # the updates for the batch_norm variables created by network_fn.
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, first_clone_scope)
 
+    #############
+    # Summaries #
+    #############
+
     # Add summaries for end_points.
     end_points = clones[0].outputs
     for end_point in end_points:
@@ -638,7 +642,8 @@ def main(_):
     # Create gradient updates.
     # quantize 'clones_gradients'
     if extr_grad_quantizer is not None:
-        clones_gradients=[(extr_grad_quantizer.quantize(gv[0]),gv[1]) for gv in clones_gradients]
+        clones_gradients=[(extr_grad_quantizer.quantize(gv[0]),gv[1]) 
+                            for gv in clones_gradients]
     
     # Add gradients to summary
     for gv in clones_gradients:
