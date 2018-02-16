@@ -12,7 +12,7 @@ DATASET_NAME=imagenet
 DATASET_DIR=/data/tf
 
 # Run evaluation.
-export CUDA_VISIBLE_DEVICES=0
+#export CUDA_VISIBLE_DEVICES=0
 python eval_image_classifier.py \
   --checkpoint_path=${TRAIN_DIR} \
   --eval_dir=/tmp/tf \
@@ -22,10 +22,6 @@ python eval_image_classifier.py \
   --model_name=inception_v1 \
   --max_num_batches=60 \
   --batch_size=10 \
-  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json
+  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \
+  --extr_qmap=${TRAIN_DIR}/QMaps/weights.json
 
-
-
-
-
-unset CUDA_VISIBLE_DEVICES

@@ -10,8 +10,8 @@ filter_width = filter_height = 3
 batch_size = 10
 input_channels = 10
 output_channels = 10
-stride=1
-strides = [1,stride,stride,1]
+stride=(2,2)
+rate=(1,1)
 padding = "SAME" # "VALID" or "SAME"
 data_format = "NHWC"
 fixed_size = 32
@@ -32,34 +32,46 @@ inputs = tf.constant(inputs_vals,dtype=tf.float32)
 filters = tf.constant(filters_vals,dtype=tf.float32)
 
 quantizer = Quantizers.NoQuantizer()
-output = QConv.q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
 
-gold_output = nn.convolution(
-        input=inputs,
-        filter=filters,
-        dilation_rate=(1,1),
-        strides=(stride,stride),
-        padding=padding)
+results={} # dictionary with test results
+
+results['conv2d']={}
+results['conv2d']['quant'] = QConv.q2dconvolution(input=inputs, filter=filters, quantizer=quantizer, 
+                                strides=stride, dilation_rate=rate, 
+                                padding=padding, data_format=data_format)
+results['conv2d']['gold'] = nn.convolution(
+                                input=inputs,
+                                filter=filters,
+                                dilation_rate=rate,
+                                strides=stride,
+                                padding=padding)
+
+results['atrous_conv2d']={}
+results['atrous_conv2d']['quant'] = QConv.atrous_conv2d(inputs, filters, rate, padding, 
+                                quantizer=quantizer)
+results['atrous_conv2d']['gold'] = nn.atrous_conv2d(inputs, filters, rate, padding)
 
 with tf.Session() as sess:
-  gold_result=gold_output.eval().flatten()
-  result=output.eval().flatten()
-#  print(sess.run(gold_output))
-#  print('################################')
-#  print(sess.run(output))
-  pass
+    for key in results.keys():
+        results[key]['quant']=results[key]['quant'].eval().flatten()
+        results[key]['gold']=results[key]['gold'].eval().flatten()
+        print(results[key]['quant'])
+        print('--------------------------------')
+        print(results[key]['gold'])
+        print('################################')
 
-failed=False
-for i in range(len(result)):
-    if result[i] != gold_result[i]:
-        failed = True
-        break
 
-print('QConv test:')
-if failed:
-    print('---failed!---')
-else:
-    print('+++passed!+++')
+for key in results.keys():
+    if any(results[key]['quant'] != results[key]['gold']):
+        results[key]['failed'] = True
+    else:
+        results[key]['failed'] = False
+
+for key in results.keys():
+    if results[key]['failed']:
+        print('%s: ---failed!---'%key)
+    else:
+        print('%s: +++passed!+++'%key)
 
 
 

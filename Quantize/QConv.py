@@ -3,6 +3,8 @@
 
 import tensorflow as tf
 
+import numpy as np
+
 from tensorflow.python.layers import convolutional
 from tensorflow.contrib.layers.python.layers import layers
 
@@ -34,7 +36,9 @@ from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables as tf_variables
 from tensorflow.python.training import moving_averages
 
-
+##############
+### conv2d ###
+##############
 # from slim: tensorflow/contrib/layers/python/layers/layers.py
 @add_arg_scope
 def conv2d(inputs,
@@ -124,6 +128,26 @@ def conv2d(inputs,
                                        sc.original_name_scope, outputs)
 
 
+def atrous_conv2d(value, filters, rate, padding, name=None, **kwargs):
+    if kwargs['quantizer'] is not None:
+        return q2dconvolution(
+          input=value,
+          filter=filters,
+          quantizer=kwargs['quantizer'],
+          padding=padding,
+          dilation_rate=np.broadcast_to(rate, (2,)),
+          name=name)
+    else:
+        return nn.convolution(
+          input=value,
+          filter=filters,
+          padding=padding,
+          dilation_rate=np.broadcast_to(rate, (2,)),
+          name=name)
+
+################################
+### Slim Conv implementation ###
+################################
 class _QConv(convolutional._Conv):
     """ Like _Conv, but with quantized convolution
     """
@@ -306,15 +330,20 @@ def q2dconvolution(input, filter, quantizer,  # pylint: disable=redefined-builti
           "number of input channels does not match corresponding dimension of filter, "
           "{} != {}".format(input_channels_dim, filter.get_shape()[
               num_spatial_dims]))
-    #strides, dilation_rate = nn_ops._get_strides_and_dilation_rate(
-    #    num_spatial_dims, strides, dilation_rate)
+    strides, dilation_rate = nn_ops._get_strides_and_dilation_rate(
+        num_spatial_dims, strides, dilation_rate)
     strides = (1,strides[0],strides[1],1)
-    output = q2dconvolution_op(input, filter, quantizer, strides, padding, data_format)
+    dilation_rate = (1,dilation_rate[0],dilation_rate[1],1)
+    output = q2dconvolution_op(input, filter, quantizer, 
+                                strides, dilation_rate, padding, data_format)
     return output
 
 
+##########################
+### Reimplemented Conv ###
+##########################
 # parallel_iterations and swap_memory in tf.while_loops can be adjusted
-def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format):
+def q2dconvolution_op(inputs, filters, quantizer, strides, rate, padding, data_format):
     ''' Reimplementation of the 2D convolution layer.
     Args: 
         inputs:  [batch_size, image_height, image_width, input_channels] 
@@ -338,7 +367,7 @@ def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
     patch = tf.extract_image_patches(output[0], 
                                            ksizes=(1,filter_shape.dims[0], filter_shape.dims[1],1), 
                                            strides=strides,
-                                           rates=[1,1,1,1],
+                                           rates=rate,#[1,1,1,1],
                                            padding=padding )
     patch_shape = patch.get_shape()
 
@@ -370,7 +399,7 @@ def q2dconvolution_op(inputs, filters, quantizer, strides, padding, data_format)
         output_patch = tf.extract_image_patches(tf.gather(output,batch), 
                                            ksizes=(1,filter_shape.dims[0], filter_shape.dims[1],1), 
                                            strides=strides,
-                                           rates=[1,1,1,1],
+                                           rates=rate,#[1,1,1,1],
                                            padding=padding )
         # prepare inner loop interation variable 'out_filter'
         out_filter=tf.constant(0)

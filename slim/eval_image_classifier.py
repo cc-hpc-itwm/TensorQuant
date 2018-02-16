@@ -257,7 +257,7 @@ def main(_):
     summary_name = 'eval/weight_overall_sparsity'
     weights_overall_sparsity_op=tf.nn.zero_fraction(weights_overall_sparsity_op)
     op = tf.summary.scalar(summary_name, weights_overall_sparsity_op, collections=[])
-    op = tf.Print(op, [value], summary_name)
+    #op = tf.Print(op, [value], summary_name)
     tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
 
     # add overall bias sparsity to summary
@@ -266,12 +266,14 @@ def main(_):
     summary_name = 'eval/biases_overall_sparsity'
     biases_overall_sparsity_op=tf.nn.zero_fraction(biases_overall_sparsity_op)
     op = tf.summary.scalar(summary_name, biases_overall_sparsity_op, collections=[])
-    op = tf.Print(op, [value], summary_name)
+    #op = tf.Print(op, [value], summary_name)
     tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
 
     # Run Session
     config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     #config.gpu_options.allocator_type = 'BFC'
+    #config.gpu_options.allow_growth = True
+    #config.gpu_options.per_process_gpu_memory_fraction = 0.7
 
     # Final ops, used for statistics
     final_op = (list(names_to_values.values()), 

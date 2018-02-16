@@ -13,7 +13,7 @@ python download_and_convert_data.py \
   --dataset_name=mnist \
   --dataset_dir=${DATASET_DIR}
 
-export CUDA_VISIBLE_DEVICES=0
+#export CUDA_VISIBLE_DEVICES=0
 # Run evaluation.
 python eval_image_classifier.py \
   --checkpoint_path=${TRAIN_DIR} \
@@ -24,8 +24,8 @@ python eval_image_classifier.py \
   --model_name=lenet \
   --max_num_batches=100 \
   --batch_size=10 \
-  --output_file=./experiment_results/test_$$.json \
-  --comment='Run Description.' \
+#  --output_file=./experiment_results/test_$$.json \
+#  --comment='Run Description.' \
 #  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \
 #  --extr_qmap=${TRAIN_DIR}/QMaps/weights.json \
 #  --intr_qmap=${TRAIN_DIR}/QMaps/weights.json
