@@ -5,11 +5,8 @@
 # Where the checkpoint and logs will be saved to.
 TRAIN_DIR=./tmp/lenet-model
 
-QMAP_DIR=${TRAIN_DIR}/QMaps
-#INIT_QMAP=intr_opt_init.json
-QMAP_TEMPLATE=fixed_opt_template.json
-INIT_QMAP_FILE=${QMAP_DIR}/opt_init.json
-INTR_QMAP_FILE=${QMAP_DIR}/intr_qmap.json
+LAYERS=${TRAIN_DIR}/layers.json
+QMAP=/tmp/tf/tmp_qmap.json
 
 # Where the dataset is saved to.
 DATASET_DIR=~/tmp/mnist
@@ -30,9 +27,10 @@ python fixed_opt.py \
     --model_name=lenet \
     --batch_size=10 \
     --max_num_batches=5 \
-    --init_qmap=${INIT_QMAP_FILE} \
-    --intr_qmap=${INTR_QMAP_FILE} \
+    --layers_file=${LAYERS} \
+    --tmp_qmap=${QMAP} \
     --data_file=${EXP_FILE} \
+    --optimizer_init="nearest,4,2" \
     --margin=0.99
 
 

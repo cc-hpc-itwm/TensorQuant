@@ -33,8 +33,12 @@ tf.app.flags.DEFINE_string(
     'model_name', 'inception_v3', 'The name of the architecture to evaluate.')
 
 tf.app.flags.DEFINE_string(
-    'init_qmap', '', 'Location of initial quantizer map.'
+    'layers_file', '', 'Location of file containing all the layer IDs.'
     'If empty, no optimization.')
+
+tf.app.flags.DEFINE_string(
+    'tmp_qmap', 'tmp_qmap.json', 'Location of temporarily generated quantizer map.'
+    'This file does not have to exist, it will be generated and it is temporary.')
 
 tf.app.flags.DEFINE_string(
     'intr_qmap', '', 'Location of intrinsic quantizer map.'
@@ -49,7 +53,11 @@ tf.app.flags.DEFINE_string(
     '')
 
 tf.app.flags.DEFINE_string(
-    'data_file', 'here.json', 'Location of file with last results.'
+    'data_file', 'opt_results.json', 'Location of file with last results.'
+    '')
+
+tf.app.flags.DEFINE_string(
+    'optimizer_init', 'nearest,4,2', 'Starting value for optimizer.'
     '')
 
 tf.app.flags.DEFINE_float(
@@ -62,7 +70,8 @@ FLAGS = tf.app.flags.FLAGS
 # pathes to different files and filenames
 TRAIN_DIR=      FLAGS.checkpoint_path # checkpoint directory
 EVAL_DIR=       "/tmp/tf" # directory to dump summaries into
-INIT_QMAP=      FLAGS.init_qmap # quantizer map template filename
+LAYERS_FILE=    FLAGS.layers_file # available layers
+TMP_QMAP=       FLAGS.tmp_qmap # location of temporary quantizer map
 INTR_QMAP=      FLAGS.intr_qmap # location of intrinsic quantizer map
 EXTR_QMAP=      FLAGS.extr_qmap # location of extrinsic quantizer map
 WEIGHT_QMAP=    FLAGS.weight_qmap # location of weight quantizer map
@@ -81,6 +90,7 @@ utils.remove_file(DATA_FILE) # make sure there is no previous data
 METRIC = 'accuracy' # name for metric used in the experiment
 ACCURACY_MARGIN = FLAGS.margin # relative accuracy margin to be achieved for each layer
 
+OPTIMIZER_INIT = FLAGS.optimizer_init
 BREAK_CONDITION = 24 # if w above this condition
 
 def run_baseline():
@@ -104,7 +114,7 @@ def run_baseline():
 def run_evaluation(layer, qtype, w, q):
     #generate quantizer map for evaluation
     qmap={layer:"%s,%d,%d"%(qtype, w, q)}
-    with open(INTR_QMAP,'w') as hfile:
+    with open(TMP_QMAP,'w') as hfile:
         json.dump(qmap, hfile)
 
     # evaluate current setting
@@ -124,12 +134,12 @@ def run_evaluation(layer, qtype, w, q):
     eval_execution_str+="--output_file=%s "%DATA_FILE
     comment= "type=intrinsic, layer=%s, w=%d, q=%d"%(layer, w, q)
     eval_execution_str+="--comment=\"%s\" "%comment
-    eval_execution_str+="--intr_qmap=%s "%INTR_QMAP
+    eval_execution_str+="--intr_qmap=%s "%TMP_QMAP
     os.system(eval_execution_str) # call evaluation script
 
 
 def main(_):
-    print("Optimizing %s for %s"%(MODEL_NAME, INIT_QMAP))
+    print("Optimizing %s"%(MODEL_NAME))
 
     # get baseline
     # ---------------------
@@ -142,12 +152,12 @@ def main(_):
     # optimization
     # ---------------------
     # the init file contains all layers to optimize for and initial values
-    with open(INIT_QMAP,'r') as hfile:
-        qmap_template = json.load(hfile)
-
+    with open(LAYERS_FILE,'r') as hfile:
+        layers = json.load(hfile)
+    qmap_template = dict.fromkeys(layers)
+    qtype, qargs = utils.split_quantizer_str(OPTIMIZER_INIT)
     # preprocess quantizer settings
     for key in qmap_template:
-        qtype, qargs = utils.split_quantizer_str(qmap_template[key])
         qmap_template[key] = {"type":qtype, "w":int(qargs[0]), "q":int(qargs[1]), 
                               "optimal":False}
 
@@ -207,7 +217,15 @@ def main(_):
 
     # End of optimization loop
     print("Optimization complete.")
-    
+    # writing optimal settings to file
+    qmap = dict.fromkeys(qmap_template.keys())
+    for key in qmap.keys():
+        qmap[key] = "%s,%s,%s"%(qmap_template[key]['type'],
+                qmap_template[key]['w'],qmap_template[key]['q'])
+    opt_file = TRAIN_DIR+'/optimal_fixed.json' 
+    with open(opt_file,'w') as hfile:
+            json.dump(qmap, hfile)
+    print("Optimal setup written to %s."%(opt_file))
 
 if __name__ == '__main__':
   tf.app.run()

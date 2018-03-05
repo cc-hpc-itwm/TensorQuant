@@ -27,7 +27,7 @@ python train_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=alexnet_v2 \
   --preprocessing_name=alexnet_v2 \
-  --max_number_of_steps=750000 \
+  --max_number_of_steps=750004 \
   --batch_size=128 \
   --num_clones=1 \
   --num_preprocessing_threads=16 \

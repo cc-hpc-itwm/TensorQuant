@@ -298,7 +298,7 @@ def heatmap_fullyconnect(kernel, pad = 1):
 
 def get_vals_from_comments(key, val_re, data):
     '''
-        val_re must be a string in brackets!
+        val_re must be a string in paranthesis!
     '''
     _list = []
     for x in data:
@@ -323,5 +323,50 @@ def remove_file(filename):
         os.remove(filename)
     except OSError:
         pass
+
+def get_all_variable_as_list(key):
+    '''
+    key is "weights" or "biases"
+    '''
+    weights_name_list, weights_list = get_variables_list(key)
+
+    _op=[ tf.reshape(x,[tf.size(x)]) for x in weights_list]
+    _op=tf.concat(_op,axis=0)
+    return _op
+
+def get_variables_count_dict(key):
+    '''
+    key is "weights" or "biases"
+    '''
+
+    # get the quantized weight tensors for sparsity estimation
+    weights_name_list, weights_list = get_variables_list(key)
+
+    # count number of elements in each layer
+    weights_list_param_count = [ get_nb_params_shape(x.get_shape()) 
+                                    for x in weights_list]
+    weights_list_param_count = dict(zip(weights_name_list, weights_list_param_count))
+    weights_overall_sparsity_op=[ tf.reshape(x,[tf.size(x)]) for x in weights_list]
+    return weights_list_param_count
+
+def get_sparsity_ops(key):
+    '''
+    key is "weights" or "biases"
+    '''
+    # get the quantized weight tensors for sparsity estimation
+    weights_name_list, weights_list = get_variables_list(key)
+
+    # get zero fraction for each layer
+    weights_layerwise_sparsity_op=[ tf.nn.zero_fraction(x) for x in weights_list]
+
+    # add overall weights sparsity to summary
+    weights_overall_sparsity_op=[ tf.reshape(x,[tf.size(x)]) for x in weights_list]
+    weights_overall_sparsity_op=tf.concat(weights_overall_sparsity_op,axis=0)
+    summary_name = 'eval/%s_overall_sparsity'%key
+    weights_overall_sparsity_op=tf.nn.zero_fraction(weights_overall_sparsity_op)
+    op = tf.summary.scalar(summary_name, weights_overall_sparsity_op, collections=[])
+    #op = tf.Print(op, [value], summary_name)
+    tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+    return weights_layerwise_sparsity_op, weights_overall_sparsity_op
 
 

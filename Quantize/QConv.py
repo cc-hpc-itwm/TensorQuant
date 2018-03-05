@@ -35,6 +35,7 @@ from tensorflow.python.ops import standard_ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables as tf_variables
 from tensorflow.python.training import moving_averages
+from tensorflow.python.ops import gen_nn_ops
 
 ##############
 ### conv2d ###
@@ -126,8 +127,10 @@ def conv2d(inputs,
         outputs = quantizer.quantize(outputs)
     return slim_utils.collect_named_outputs(outputs_collections,
                                        sc.original_name_scope, outputs)
-
-
+##############################
+### atrous_conv2d override ###
+##############################
+# from: tensorflow/python/ops/nn_ops.py
 def atrous_conv2d(value, filters, rate, padding, name=None, **kwargs):
     if kwargs['quantizer'] is not None:
         return q2dconvolution(
@@ -144,7 +147,61 @@ def atrous_conv2d(value, filters, rate, padding, name=None, **kwargs):
           padding=padding,
           dilation_rate=np.broadcast_to(rate, (2,)),
           name=name)
+'''
+#################################
+### conv2d_transpose override ###
+#################################
+# from: tensorflow/python/ops/nn_ops.py
+def conv2d_transpose(
+    value,
+    filter,  # pylint: disable=redefined-builtin
+    output_shape,
+    strides,
+    padding="SAME",
+    data_format="NHWC",
+    name=None,
+    **kwargs):
+  with ops.name_scope(name, "conv2d_transpose",
+                      [value, filter, output_shape]) as name:
+    if data_format not in ("NCHW", "NHWC"):
+      raise ValueError("data_format has to be either NCHW or NHWC.")
+    value = ops.convert_to_tensor(value, name="value")
+    filter = ops.convert_to_tensor(filter, name="filter")  # pylint: disable=redefined-builtin
+    axis = 3 if data_format == "NHWC" else 1
+    if not value.get_shape()[axis].is_compatible_with(filter.get_shape()[3]):
+      raise ValueError("input channels does not match filter's input channels, "
+                       "{} != {}".format(value.get_shape()[axis],
+                                         filter.get_shape()[3]))
 
+    output_shape_ = ops.convert_to_tensor(output_shape, name="output_shape")
+    if not output_shape_.get_shape().is_compatible_with(tensor_shape.vector(4)):
+      raise ValueError("output_shape must have shape (4,), got {}".format(
+          output_shape_.get_shape()))
+
+    if isinstance(output_shape, (list, np.ndarray)):
+      # output_shape's shape should be == [4] if reached this point.
+      if not filter.get_shape()[2].is_compatible_with(output_shape[axis]):
+        raise ValueError(
+            "output_shape does not match filter's output channels, "
+            "{} != {}".format(output_shape[axis],
+                              filter.get_shape()[2]))
+
+    if padding != "VALID" and padding != "SAME":
+      raise ValueError("padding must be either VALID or SAME:"
+                       " {}".format(padding))
+
+    if kwargs['quantizer'] is not None:
+        pass
+    else:
+        return gen_nn_ops.conv2d_backprop_input(
+            input_sizes=output_shape_,
+            filter=filter,
+            out_backprop=value,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            name=name)
+'''
 ################################
 ### Slim Conv implementation ###
 ################################
@@ -290,8 +347,8 @@ class QConv2D(_QConv):
         **kwargs)
 
 
-def q2dconvolution(input, filter, quantizer,  # pylint: disable=redefined-builtin
-                padding, strides=None, dilation_rate=None,
+def q2dconvolution(input, filter, quantizer=None,  # pylint: disable=redefined-builtin
+                padding="VALID", strides=None, dilation_rate=None,
                 name=None, data_format=None):
   # pylint: disable=line-too-long
   """ quantized convolution"""

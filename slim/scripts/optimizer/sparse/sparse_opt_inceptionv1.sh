@@ -5,12 +5,10 @@
 # Where the checkpoints are at
 TRAIN_DIR=./tmp/inceptionv1-model
 
-# Where the quantizer maps are at
-QMAP_DIR=${TRAIN_DIR}/QMaps     
-# A quantizer map with all layers to be optimized and their initial quantizer parameters
-INIT_QMAP_FILE=${QMAP_DIR}/opt_sparse_init.json  
-# A temporary file 
-TMP_QMAP_FILE=${QMAP_DIR}/qmap.json
+# A .json file with a list of the layers to be quantized
+LAYERS=${TRAIN_DIR}/layers.json
+# A temporary file location, actual location does not matter.
+QMAP=/tmp/tf/tmp_qmap.json
 
 # Where the dataset is saved to.
 DATASET_DIR=/data/tf
@@ -18,12 +16,9 @@ DATASET_DIR=/data/tf
 DATASET_NAME=imagenet
 
 # Name of the Experiment
-EXPERIMENT=googlenet_opt_sparse_$$
+EXPERIMENT=googlenet_sparse_opt_$$
 EXP_FOLDER=experiment_results
 EXP_FILE=./${EXP_FOLDER}/${EXPERIMENT}.json
-
-
-export CUDA_VISIBLE_DEVICES=0
 
 python sparse_opt.py \
     --checkpoint_path=${TRAIN_DIR} \
@@ -32,9 +27,11 @@ python sparse_opt.py \
     --dataset_dir=${DATASET_DIR} \
     --model_name=inception_v1 \
     --batch_size=10 \
-    --max_num_batches=10 \
-    --init_qmap=${INIT_QMAP_FILE} \
-    --weight_qmap=${TMP_QMAP_FILE} \
-    --data_file=${EXP_FILE}
+    --max_num_batches=60 \
+    --layers_file=${LAYERS} \
+    --tmp_qmap=${QMAP} \
+    --data_file=${EXP_FILE} \
+    --optimizer_init="sparse,1" \
+    --margin=0.99
 
 

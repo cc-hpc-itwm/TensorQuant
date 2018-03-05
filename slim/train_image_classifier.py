@@ -554,7 +554,7 @@ def main(_):
     for end_point in end_points:
       x = end_points[end_point]
       summaries.add(tf.summary.histogram('activations/' + end_point, x))
-      summaries.add(tf.summary.scalar('sparsity/' + end_point,
+      summaries.add(tf.summary.scalar('sparse_activations/' + end_point,
                                       tf.nn.zero_fraction(x)))
 
     # Add summaries for losses.
@@ -570,8 +570,10 @@ def main(_):
     biases_name_list, biases_list = utils.get_variables_list('biases')
     for weight in weights_list:
       summaries.add(tf.summary.scalar('weight-sparsity/'+weight.name, tf.nn.zero_fraction(weight)))
+      summaries.add(tf.summary.histogram('quantized_weights/'+weight.name, weight))    
     for bias in biases_list:
       summaries.add(tf.summary.scalar('weight-sparsity/'+bias.name, tf.nn.zero_fraction(bias)))
+      summaries.add(tf.summary.histogram('quantized_weights/'+bias.name, bias))
     # summaries for overall sparsity  
     if weights_list is not []:    
         weights_overall_sparsity=[ tf.reshape(x,[tf.size(x)]) for x in weights_list]

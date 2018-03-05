@@ -188,7 +188,6 @@ def main(_):
     logits, endpoints = network_fn(images)
     predictions= tf.argmax(logits, 1)
     labels = tf.squeeze(labels)
-    used_gpus=1
     
     #tf.logging.info('Number of parameters per layer and endpoint:')
     #for var in endpoints:
@@ -224,7 +223,7 @@ def main(_):
     else:
       # This ensures that we make a single pass over all of the data.
       #num_batches = math.ceil(dataset.num_samples / float(FLAGS.batch_size))
-      num_batches = math.ceil(dataset.num_samples / (float(FLAGS.batch_size)*used_gpus) )
+      num_batches = math.ceil(dataset.num_samples / (float(FLAGS.batch_size)) )
 
     # get checkpoint
     if tf.gfile.IsDirectory(FLAGS.checkpoint_path):
@@ -235,6 +234,22 @@ def main(_):
         raise ValueError('No Checkpoint found!')
     tf.logging.info('Evaluating %s' % checkpoint_path)
 
+    # get per layer number of variables
+    weights_list_param_count = utils.get_variables_count_dict('weights')
+    biases_list_param_count = utils.get_variables_count_dict('biases')
+
+    # get ops calculating the layerwise and overall sparsity of weights
+    weights_layerwise_sparsity_op, weights_overall_sparsity_op = (
+                utils.get_sparsity_ops('weights') )
+    biases_layerwise_sparsity_op, biases_overall_sparsity_op = (
+                utils.get_sparsity_ops('biases') )
+
+    # get ops for activation sparsity
+    activation_layerwise_sparsity = {}
+    for key in endpoints.keys():
+      activation_layerwise_sparsity[key]=tf.nn.zero_fraction(endpoints[key])
+        
+    '''
     # get the quantized weight tensors for sparsity estimation
     weights_name_list, weights_list = utils.get_variables_list('weights')
     biases_name_list, biases_list = utils.get_variables_list('biases')
@@ -254,6 +269,7 @@ def main(_):
     # add overall weights sparsity to summary
     weights_overall_sparsity_op=[ tf.reshape(x,[tf.size(x)]) for x in weights_list]
     weights_overall_sparsity_op=tf.concat(weights_overall_sparsity_op,axis=0)
+    #l_weights_values = weights_overall_sparsity_op # a list of all weight values, for histogram
     summary_name = 'eval/weight_overall_sparsity'
     weights_overall_sparsity_op=tf.nn.zero_fraction(weights_overall_sparsity_op)
     op = tf.summary.scalar(summary_name, weights_overall_sparsity_op, collections=[])
@@ -268,6 +284,7 @@ def main(_):
     op = tf.summary.scalar(summary_name, biases_overall_sparsity_op, collections=[])
     #op = tf.Print(op, [value], summary_name)
     tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+    '''
 
     # Run Session
     config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
@@ -278,7 +295,8 @@ def main(_):
     # Final ops, used for statistics
     final_op = (list(names_to_values.values()), 
                        weights_layerwise_sparsity_op, biases_layerwise_sparsity_op,
-                       weights_overall_sparsity_op, biases_overall_sparsity_op )
+                       weights_overall_sparsity_op, biases_overall_sparsity_op,
+                       list(activation_layerwise_sparsity.values()) )
     print('Running %s for %d iterations'%(FLAGS.model_name,num_batches))
     start_time_simu = time.time()
     run_values = slim.evaluation.evaluate_once(
@@ -297,14 +315,18 @@ def main(_):
     bias_sparsity_values = run_values[2]
     weight_sparsity=run_values[3]
     bias_sparsity=run_values[4]
+    activation_layerwise_sparsity=dict(zip( list(activation_layerwise_sparsity.keys()),
+                                            [float(x) for x in run_values[5]] ))
 
     # compute sparsity
     print('Calculating sparsity...')
     weight_sparsity_layerwise = {}
+    weights_name_list = list(weights_list_param_count.keys())
     for it in range(len(weights_name_list)):
         name=weights_name_list[it]
         weight_sparsity_layerwise[name] = float(weight_sparsity_values[it])
     bias_sparsity_layerwise = {}
+    biases_name_list = list(biases_list_param_count.keys())
     for it in range(len(biases_name_list)):
         name=biases_name_list[it]
         bias_sparsity_layerwise[name] = float(bias_sparsity_values[it])
@@ -314,6 +336,7 @@ def main(_):
     print('Accuracy: %.2f%%'%(accuracy*100))
     print('Buildtime: %f sec'%buildtime)
     print('Runtime: %f sec'%runtime)
+    print('---')
     print('Weight sparsity: %f%%'%(weight_sparsity*100))
     print('Layerwise weight sparsity:')
     for key in weight_sparsity_layerwise.keys():
@@ -322,9 +345,13 @@ def main(_):
     print('Layerwise bias sparsity:')
     for key in bias_sparsity_layerwise.keys():
         print("     %s: %.2f%%"%(key, bias_sparsity_layerwise[key]*100))
+    print('---')
+    print('Activation sparsity:')
+    for key in activation_layerwise_sparsity.keys():
+        print("     %s: %.2f%%"%(key, activation_layerwise_sparsity[key]*100))
     print('Comment: %s'%(FLAGS.comment))
    
-    # tf.train.export_meta_graph(filename=FLAGS.checkpoint_path+'/model.meta')
+    tf.train.export_meta_graph(filename=FLAGS.checkpoint_path+'/model.meta')
 
     # write data to .json file
     if FLAGS.output_file is not None:
@@ -336,13 +363,14 @@ def main(_):
         new_data={}
         new_data["accuracy"]=accuracy.tolist()
         new_data["net"]=FLAGS.model_name
-        new_data["samples"]=(num_batches*FLAGS.batch_size*used_gpus)
+        new_data["samples"]=(num_batches*FLAGS.batch_size)
         new_data["weight_sparsity"]=weight_sparsity.tolist()
         new_data["weight_sparsity_layerwise"]=weight_sparsity_layerwise
         new_data["weight_count_layerwise"]=weights_list_param_count
         new_data["bias_sparsity"]=bias_sparsity.tolist()
         new_data["bias_sparsity_layerwise"]=bias_sparsity_layerwise
         new_data["bias_count_layerwise"]=biases_list_param_count
+        new_data["activation_sparsity_layerwise"]=activation_layerwise_sparsity
         new_data["runtime"]=runtime
         new_data["comment"]=FLAGS.comment
 

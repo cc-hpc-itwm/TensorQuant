@@ -23,5 +23,5 @@ python eval_image_classifier.py \
   --max_num_batches=60 \
   --batch_size=10 \
   --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \
-  --extr_qmap=${TRAIN_DIR}/QMaps/weights.json
+#  --extr_qmap=${TRAIN_DIR}/QMaps/weights.json
 

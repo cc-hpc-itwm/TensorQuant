@@ -185,7 +185,7 @@ class AveragePooling2D(_Pooling2D):
 
 
 
-def avg_pool(value, ksize, strides, padding, quantizer, data_format="NHWC", name=None):
+def avg_pool(value, ksize, strides, padding, quantizer=None, data_format="NHWC", name=None):
   """Performs the average pooling on the input (quantized version).
   Each entry in `output` is the mean of the corresponding size `ksize`
   window in `value`.

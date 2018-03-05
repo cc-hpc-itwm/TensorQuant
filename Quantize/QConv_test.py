@@ -35,21 +35,30 @@ quantizer = Quantizers.NoQuantizer()
 
 results={} # dictionary with test results
 
-results['conv2d']={}
-results['conv2d']['quant'] = QConv.q2dconvolution(input=inputs, filter=filters, quantizer=quantizer, 
+test_name='conv2d'
+results[test_name]={}
+results[test_name]['quant'] = QConv.q2dconvolution(input=inputs, filter=filters, quantizer=quantizer, 
                                 strides=stride, dilation_rate=rate, 
                                 padding=padding, data_format=data_format)
-results['conv2d']['gold'] = nn.convolution(
+results[test_name]['gold'] = nn.convolution(
                                 input=inputs,
                                 filter=filters,
                                 dilation_rate=rate,
                                 strides=stride,
                                 padding=padding)
 
-results['atrous_conv2d']={}
-results['atrous_conv2d']['quant'] = QConv.atrous_conv2d(inputs, filters, rate, padding, 
+test_name='atrous_conv2d'
+results[test_name]={}
+results[test_name]['quant'] = QConv.atrous_conv2d(inputs, filters, rate, padding, 
                                 quantizer=quantizer)
-results['atrous_conv2d']['gold'] = nn.atrous_conv2d(inputs, filters, rate, padding)
+results[test_name]['gold'] = nn.atrous_conv2d(inputs, filters, rate, padding)
+
+#test_name='conv2d_transpose'
+#results[test_name]={}
+#results[test_name]['quant'] = QConv.conv2d_transpose(inputs, filters, output_shape, rate, 
+#                                padding=padding, 
+#                                quantizer=quantizer)
+#results[test_name]['gold'] = nn.atrous_conv2d(inputs, filters, rate, padding)
 
 with tf.Session() as sess:
     for key in results.keys():

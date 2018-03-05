@@ -1,5 +1,6 @@
 from Quantize import FixedPoint
 from Quantize import QuantKernelWrapper as Wrapped
+import tensorflow as tf
 
 class Quantizer_if():
     """Interface for quantizer classes"""
