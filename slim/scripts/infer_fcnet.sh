@@ -24,4 +24,4 @@ python eval_image_classifier.py \
   --dataset_split_name=test \
   --dataset_dir=${DATASET_DIR} \
   --model_name=fcnet \
-  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json
+#  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json

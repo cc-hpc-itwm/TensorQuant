@@ -15,11 +15,6 @@ TRAIN_DIR=./tmp/fcnet-model
 # Where the dataset is saved to.
 DATASET_DIR=~/tmp/mnist
 
-# Download the dataset
-python download_and_convert_data.py \
-  --dataset_name=mnist \
-  --dataset_dir=${DATASET_DIR}
-
 # Run training.
 export CUDA_VISIBLE_DEVICES=0
 python train_image_classifier.py \
@@ -37,8 +32,7 @@ python train_image_classifier.py \
   --log_every_n_steps=100 \
   --optimizer=sgd \
   --learning_rate_decay_type=fixed \
-  --weight_decay=0 \
-#  --intr_grad_quantizer=nearest,16,7
+  --weight_decay=0
 
 # Run evaluation.
 python eval_image_classifier.py \
