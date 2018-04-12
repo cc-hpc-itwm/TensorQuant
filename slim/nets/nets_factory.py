@@ -25,6 +25,7 @@ from nets import alexnet
 from nets import cifarnet
 from nets import inception
 from nets import lenet
+from nets import lenet_v2
 from nets import overfeat
 from nets import resnet_v1
 from nets import resnet_v2
@@ -50,6 +51,7 @@ networks_map = {'alexnet_v2': alexnet.alexnet_v2,
                 'inception_v4': inception.inception_v4,
                 'inception_resnet_v2': inception.inception_resnet_v2,
                 'lenet': lenet.lenet,
+                'lenet_v2': lenet_v2.lenet,
                 'resnet_v1_50': resnet_v1.resnet_v1_50,
                 'resnet_v1_101': resnet_v1.resnet_v1_101,
                 'resnet_v1_152': resnet_v1.resnet_v1_152,
@@ -74,6 +76,7 @@ arg_scopes_map = {'alexnet_v2': alexnet.alexnet_v2_arg_scope,
                   'inception_resnet_v2':
                   inception.inception_resnet_v2_arg_scope,
                   'lenet': lenet.lenet_arg_scope,
+                  'lenet_v2': lenet.lenet_arg_scope,
                   'resnet_v1_50': resnet_v1.resnet_arg_scope,
                   'resnet_v1_101': resnet_v1.resnet_arg_scope,
                   'resnet_v1_152': resnet_v1.resnet_arg_scope,
@@ -84,7 +87,6 @@ arg_scopes_map = {'alexnet_v2': alexnet.alexnet_v2_arg_scope,
                   'resnet_v2_200': resnet_v2.resnet_arg_scope,
                   'fcnet': fcnet.fcnet_arg_scope,
                  }
-
 
 def get_network_fn(name, num_classes, weight_decay=0.0, is_training=False,
                    intr_q_map=None, extr_q_map=None, weight_q_map=None):
@@ -117,6 +119,9 @@ def get_network_fn(name, num_classes, weight_decay=0.0, is_training=False,
   avg_pool2d = Factories.avg_pool2d_factory(
                 intr_q_map=intr_q_map, extr_q_map=extr_q_map)
 
+  layers = {"conv2d" : conv2d, "fully_connected" : fully_connected, "max_pool2d" : max_pool2d, "avg_pool2d" : avg_pool2d}
+
+
   # passed network function
   @functools.wraps(func)
   def network_fn(images, reuse=None):
@@ -125,29 +130,14 @@ def get_network_fn(name, num_classes, weight_decay=0.0, is_training=False,
                                 batch_norm_quantizer=intr_q_map['batch_norm'])
     else:
         arg_scope = arg_scopes_map[name](weight_decay=weight_decay)
-
+    
     with slim.arg_scope(arg_scope):
-        if 'inception_v1' in name:
-            return func(images, num_classes, is_training=is_training, reuse=reuse,
-                    conv2d=conv2d, max_pool2d=max_pool2d, avg_pool2d=avg_pool2d)
-        if 'inception_v3' in name:
-            return func(images, num_classes, is_training=is_training, reuse=reuse,
-                    conv2d=conv2d, max_pool2d=max_pool2d, avg_pool2d=avg_pool2d)
-        if 'lenet' in name:
-            return func(images, num_classes, is_training=is_training, reuse=reuse,
-                    conv2d=conv2d, max_pool2d=max_pool2d, fully_connected=fully_connected)
-        if 'resnet_v1' in name:
-            return func(images, num_classes, is_training=is_training, reuse=reuse,
-                    conv2d=conv2d, max_pool2d=max_pool2d)
-        if 'fcnet' in name:
-            return func(images, num_classes, is_training=is_training, reuse=reuse,
-                    fully_connected=fully_connected)
-        if 'alexnet' in name:
-            return func(images, num_classes, is_training=is_training,
-                    conv2d=conv2d, fully_connected=fully_connected, max_pool2d=max_pool2d)
-        else:
-            tf.logging.warn('Net %s not recognized! No quantization applied.'%name)
-            return func(images, num_classes, is_training=is_training)
+        try:
+            result=func(images, num_classes, is_training=is_training, reuse=reuse, **layers)
+        except:
+            tf.logging.warn('Net %s not has no **kwargs!'%name)
+            result=func(images, num_classes, is_training=is_training)
+        return result
 
   if hasattr(func, 'default_image_size'):
     network_fn.default_image_size = func.default_image_size

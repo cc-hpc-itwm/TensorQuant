@@ -22,8 +22,6 @@ import tensorflow as tf
 
 from nets import inception_utils
 
-import sys
-sys.path.append('../TensorLib')
 from Quantize import QConv
 from Quantize import QFullyConnect
 from Quantize import QBatchNorm
@@ -263,9 +261,7 @@ def inception_v1(inputs,
                  spatial_squeeze=True,
                  reuse=None,
                  scope='InceptionV1',
-                 conv2d=slim.conv2d, 
-                 max_pool2d=slim.max_pool2d, 
-                 avg_pool2d = slim.avg_pool2d):
+                 **kwargs):
   """Defines the Inception V1 architecture.
 
   This architecture is defined in:
@@ -295,6 +291,10 @@ def inception_v1(inputs,
     end_points: a dictionary from components of the network to the corresponding
       activation.
   """
+  conv2d=kwargs["conv2d"] 
+  max_pool2d=kwargs["max_pool2d"] 
+  avg_pool2d = kwargs["avg_pool2d"]
+
 
   # Final pooling and prediction
   with tf.variable_scope(scope, 'InceptionV1', [inputs, num_classes],

@@ -31,19 +31,20 @@ python train_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=lenet \
   --preprocessing_name=lenet \
-  --max_number_of_steps=1000 \
-  --batch_size=50 \
-  --learning_rate=0.01 \
-  --save_interval_secs=10 \
-  --save_summaries_secs=10 \
+  --max_number_of_steps=3000 \
+  --batch_size=10 \
+  --learning_rate=0.001 \
+  --save_interval_secs=3600 \
+  --save_summaries_secs=3600 \
   --log_every_n_steps=100 \
-  --optimizer=sgd \
+  --optimizer=nm01 \
   --learning_rate_decay_type=fixed \
-  --weight_decay=0 \
-  --weight_qmap=./tmp/lenet-model/QMaps/weights.json \
-#  --intr_grad_quantizer=sparse,0.1 \
-# --weight_qmap=./tmp/lenet-model/QMaps/weights.json \
-#  --intr_grad_quantizer=nearest,2,1 \
+  --end_learning_rate=0.0001 \
+  --intr_grad_quantizer=nearest,4,3 \
+#  --weight_qmap=./tmp/lenet-model/QMaps/weights.json \
+
+
+
 
 
 # Run evaluation.
@@ -54,4 +55,4 @@ python eval_image_classifier.py \
   --dataset_split_name=test \
   --dataset_dir=${DATASET_DIR} \
   --model_name=lenet \
-  --weight_qmap=./tmp/lenet-model/QMaps/weights.json \
+#  --weight_qmap=./tmp/lenet-model/QMaps/weights.json \

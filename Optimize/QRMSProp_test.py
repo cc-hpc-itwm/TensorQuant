@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import Quantizers
+from TensorQuant.Quantize import Quantizers
 import QRMSProp
 
 from tensorflow.python.ops import standard_ops

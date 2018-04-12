@@ -78,11 +78,12 @@ def _add_to_tfrecord(filename, tfrecord_writer, offset=0):
     #data = cPickle.load(f)
     data = pickle.load(f,encoding='bytes')
 
-  images = data['data']
+  print(data.keys())
+  images = data[b'data']
   num_images = images.shape[0]
 
   images = images.reshape((num_images, 3, 32, 32))
-  labels = data['labels']
+  labels = data[b'labels']
 
   with tf.Graph().as_default():
     image_placeholder = tf.placeholder(dtype=tf.uint8)
@@ -102,7 +103,7 @@ def _add_to_tfrecord(filename, tfrecord_writer, offset=0):
                               feed_dict={image_placeholder: image})
 
         example = dataset_utils.image_to_tfexample(
-            png_string, 'png', _IMAGE_SIZE, _IMAGE_SIZE, label)
+            png_string, b'png', _IMAGE_SIZE, _IMAGE_SIZE, label)
         tfrecord_writer.write(example.SerializeToString())
 
   return offset + num_images
@@ -172,7 +173,7 @@ def run(dataset_dir):
     print('Dataset files already exist. Exiting without re-creating them.')
     return
 
-  dataset_utils.download_and_uncompress_tarball(_DATA_URL, dataset_dir)
+  #dataset_utils.download_and_uncompress_tarball(_DATA_URL, dataset_dir)
 
   # First, process the training data:
   with tf.python_io.TFRecordWriter(training_filename) as tfrecord_writer:

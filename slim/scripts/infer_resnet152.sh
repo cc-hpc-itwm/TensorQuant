@@ -23,9 +23,5 @@ python eval_image_classifier.py \
   --labels_offset=1 \
   --max_num_batches=5 \
   --batch_size=2 \
-#  --intr_quantizer=nearest,24,10 \
-#  --intr_quantize_layers=resnet \
-#  --extr_quantizer=nearest,16,8 \
-#  --extr_quantize_layers=resnet
 
 unset CUDA_VISIBLE_DEVICES

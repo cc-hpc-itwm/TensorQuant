@@ -25,6 +25,19 @@ from Quantize import QFullyConnect
 
 slim = tf.contrib.slim
 
+####################
+### Quantizer
+#intr_quantizer = None # Quantizers.FixedPointQuantizer(8,4)
+#extr_quantizer = None # Quantizers.NoQuantizer()
+#quantizer = None
+####################
+
+
+#conv2d = Factories.conv2d_factory(intr_quantizer=intr_quantizer, extr_quantizer=extr_quantizer)
+#fully_connected = Factories.fully_connected_factory(intr_quantizer=intr_quantizer, extr_quantizer=extr_quantizer)
+
+
+
 def lenet(images, num_classes=10, is_training=False, reuse=None,
           dropout_keep_prob=0.5,
           prediction_fn=slim.softmax,
@@ -56,26 +69,58 @@ def lenet(images, num_classes=10, is_training=False, reuse=None,
     end_points: a dictionary from components of the network to the corresponding
       activation.
   """
+  conv2d=kwargs["conv2d"]
+  max_pool2d=kwargs["max_pool2d"]
+  fully_connected = kwargs["fully_connected"]
+
+  def one_way(in_net, filters, size, padding='SAME'):
+    net = conv2d(in_net, filters, [size, 1], padding=padding, scope='conv_%dx1_1'%size)
+    net = conv2d(net, filters, [1, size], padding=padding, scope='conv_1x%d_2'%size)
+    return net
+
+  def two_way(in_net, filters, size):
+    subnet1 = conv2d(in_net, filters, [5, 1], padding='VALID', scope='conv_%dx1'%size)
+    subnet1 = tf.transpose(subnet1, perm=[0,3,1,2])
+    subnet2 = conv2d(in_net, filters, [1, 5], padding='VALID', scope='conv_1x%d'%size)
+    subnet2 = tf.transpose(subnet2, perm=[0,3,1,2])
+    net = tf.matmul(subnet1,subnet2)
+    net = tf.transpose(net, perm=[0,2,3,1])
+    return net
+
   end_points = {}
 
-  conv2d=kwargs['conv2d'] 
-  max_pool2d=kwargs['max_pool2d'] 
-  fully_connected=kwargs['fully_connected']
-
   with tf.variable_scope(scope, 'LeNet', [images, num_classes],reuse=reuse):
-        net = conv2d(images, 32, [5, 5], scope='conv1')
+    net = images
+    
+    end_point = 'Layer01'
+    with tf.variable_scope(end_point):
+        #net = conv2d(images, 32, [5, 5], scope='conv1')
+        net = one_way(net, 32, 5)
+        net = max_pool2d(net, [2, 2], 2, scope='pool')
+    end_points[end_point] = net
+
+    end_point = 'Layer02'
+    with tf.variable_scope(end_point):
+        #net = conv2d(net, 64, [5, 5], scope='conv2')
+        net = one_way(net, 64, 5)
         net = max_pool2d(net, [2, 2], 2, scope='pool1')
-        end_points['pool1'] = net
-        net = conv2d(net, 64, [5, 5], scope='conv2')
-        net = max_pool2d(net, [2, 2], 2, scope='pool2')
-        end_points['pool2'] = net
+    end_points[end_point] = net
+
+    end_point = 'Layer03'
+    with tf.variable_scope(end_point):
+        #net = slim.flatten(net)
+        #net = fully_connected(net, 1024, scope='fc3')
+        net = one_way(net, 1024, 7, padding='VALID')
         net = slim.flatten(net)
-        end_points['Flatten'] = net
-        net = fully_connected(net, 1024, scope='fc3')
-        net = slim.dropout(net, dropout_keep_prob, is_training=is_training,
-                           scope='dropout3')
-        logits = fully_connected(net, num_classes, activation_fn=None,
-                                      scope='fc4')
+        net = slim.dropout(net, dropout_keep_prob, 
+                    is_training=is_training,scope='dropout3')
+    end_points[end_point] = net
+
+    end_point = 'Layer04'
+    with tf.variable_scope(end_point):
+        logits = fully_connected(net, num_classes, activation_fn=None, scope='fc4')
+        #net = one_way(net, num_classes, 1, conv2d, max_pool2d)
+        #logits = slim.flatten(net)
   end_points['Logits'] = logits
   end_points['Predictions'] = prediction_fn(logits, scope='Predictions')
 

@@ -62,9 +62,7 @@ def alexnet_v2(inputs,
                dropout_keep_prob=0.5,
                spatial_squeeze=True,
                scope='alexnet_v2',
-               conv2d=slim.conv2d,
-               fully_connected=slim.fully_connected,
-               max_pool2d=slim.max_pool2d):
+               **kwargs):
   """AlexNet version 2.
 
   Described in: http://arxiv.org/pdf/1404.5997v2.pdf
@@ -91,6 +89,10 @@ def alexnet_v2(inputs,
   Returns:
     the last op containing the log predictions and end_points dict.
   """
+  conv2d=kwargs["conv2d"]
+  fully_connected=kwargs["fully_connected"]
+  max_pool2d=kwargs["max_pool2d"]
+
   with tf.variable_scope(scope, 'alexnet_v2', [inputs]) as sc:
     end_points_collection = sc.name + '_end_points'
     # Collect outputs for conv2d, fully_connected and max_pool2d.

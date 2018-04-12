@@ -434,9 +434,7 @@ def inception_v3(inputs,
                  spatial_squeeze=True,
                  reuse=None,
                  scope='InceptionV3',
-                 conv2d=slim.conv2d, 
-                 max_pool2d=slim.max_pool2d,
-                 avg_pool2d=slim.avg_pool2d):
+                 **kwargs):
   """Inception model from http://arxiv.org/abs/1512.00567.
 
   "Rethinking the Inception Architecture for Computer Vision"
@@ -479,6 +477,10 @@ def inception_v3(inputs,
   Raises:
     ValueError: if 'depth_multiplier' is less than or equal to zero.
   """
+  conv2d=kwargs["conv2d"] 
+  max_pool2d=kwargs["max_pool2d"]
+  avg_pool2d=kwargs["avg_pool2d"]
+
   if depth_multiplier <= 0:
     raise ValueError('depth_multiplier is not greater than zero.')
   depth = lambda d: max(int(d * depth_multiplier), min_depth)

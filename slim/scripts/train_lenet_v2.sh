@@ -10,7 +10,7 @@
 # ./slim/scripts/train_lenet_on_mnist.sh
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/fcnet-model/test
+TRAIN_DIR=./tmp/lenet_v2-model/test
 rm -r ${TRAIN_DIR}
 mkdir ${TRAIN_DIR}
 
@@ -24,17 +24,23 @@ python train_image_classifier.py \
   --dataset_name=mnist \
   --dataset_split_name=train \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=fcnet \
-  --preprocessing_name=fcnet \
-  --max_number_of_steps=10000 \
-  --batch_size=50 \
-  --learning_rate=0.01 \
+  --model_name=lenet_v2 \
+  --preprocessing_name=lenet_v2 \
+  --max_number_of_steps=3000 \
+  --batch_size=10 \
+  --learning_rate=0.001 \
   --save_interval_secs=3600 \
   --save_summaries_secs=3600 \
   --log_every_n_steps=100 \
   --optimizer=sgd \
   --learning_rate_decay_type=fixed \
-  --weight_decay=0
+  --end_learning_rate=0.0001 \
+#  --intr_grad_quantizer=nearest,4,3 \
+#  --weight_qmap=./tmp/lenet_v2-model/QMaps/weights.json \
+
+
+
+
 
 # Run evaluation.
 python eval_image_classifier.py \
@@ -43,4 +49,5 @@ python eval_image_classifier.py \
   --dataset_name=mnist \
   --dataset_split_name=test \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=fcnet
+  --model_name=lenet_v2 \
+#  --weight_qmap=./tmp/lenet_v2-model/QMaps/weights.json \

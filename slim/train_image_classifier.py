@@ -27,8 +27,11 @@ from nets import nets_factory
 from preprocessing import preprocessing_factory
 
 from Quantize import Quantizers
-from Quantize import QSGD
-from Quantize import QRMSProp
+from Optimize import QSGD
+from Optimize import QRMSProp
+from Optimize import Cocob
+from Optimize import MeanThreshold
+from Optimize import NewMethod01
 
 import utils
 
@@ -351,8 +354,14 @@ def _configure_optimizer(learning_rate, quantizer=None):
     if quantizer is None:
         optimizer = tf.train.GradientDescentOptimizer(learning_rate)
     else:
-        optimizer = QSGD.GradientDescentOptimizer(learning_rate,
-                                                quantizer=quantizer)
+        optimizer = QSGD.GradientDescentOptimizer(learning_rate,quantizer=quantizer)
+  # custom optimizers
+  elif FLAGS.optimizer == 'cocob':
+    optimizer = Cocob.COCOB()
+  elif FLAGS.optimizer == 'mto':
+    optimizer = MeanThreshold.MeanThresholdOptimizer(learning_rate)
+  elif FLAGS.optimizer == 'nm01':
+    optimizer = NewMethod01.NM01(learning_rate, quantizer=quantizer)
   else:
     raise ValueError('Optimizer [%s] was not recognized', FLAGS.optimizer)
   return optimizer

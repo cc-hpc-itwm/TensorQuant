@@ -224,9 +224,10 @@ def resnet_v1_50(inputs,
                  output_stride=None,
                  reuse=None,
                  scope='resnet_v1_50',
-                 conv2d=slim.conv2d,
-                 max_pool2d=slim.max_pool2d):
+                 **kwargs):
   """ResNet-50 model of [1]. See resnet_v1() for arg and return description."""
+  conv2d=kwargs['conv2d'] 
+  max_pool2d=kwargs['max_pool2d'] 
   blocks = [
       resnet_utils.Block(
           'block1', bottleneck, [(256, 64, 1)] * 2 + [(256, 64, 2)]),
@@ -274,9 +275,10 @@ def resnet_v1_152(inputs,
                   output_stride=None,
                   reuse=None,
                   scope='resnet_v1_152',
-                  conv2d=slim.conv2d,
-                  max_pool2d=slim.max_pool2d):
+                  **kwargs):
   """ResNet-152 model of [1]. See resnet_v1() for arg and return description."""
+  conv2d=kwargs['conv2d'] 
+  max_pool2d=kwargs['max_pool2d'] 
   blocks = [
       resnet_utils.Block(
           'block1', bottleneck, [(256, 64, 1)] * 2 + [(256, 64, 2)]),

@@ -30,8 +30,7 @@ def inception_v2_base(inputs,
                       final_endpoint='Mixed_5c',
                       min_depth=16,
                       depth_multiplier=1.0,
-                      scope=None,
-                      quantization_type=None):
+                      scope=None):
   """Inception v2 (6a2).
 
   Constructs an Inception v2 network from inputs to the given final endpoint.
@@ -423,8 +422,7 @@ def inception_v2(inputs,
                  prediction_fn=slim.softmax,
                  spatial_squeeze=True,
                  reuse=None,
-                 scope='InceptionV2',
-                 quantization_type=None):
+                 scope='InceptionV2'):
   """Inception v2 model for classification.
 
   Constructs an Inception v2 network for classification as described in
