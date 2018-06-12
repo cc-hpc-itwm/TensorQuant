@@ -97,5 +97,5 @@ def lenet_arg_scope(weight_decay=0.0):
        QConv.conv2d, QFullyConnect.fully_connected],
       weights_regularizer=slim.l2_regularizer(weight_decay),
       weights_initializer=tf.truncated_normal_initializer(stddev=0.1),
-      activation_fn=tf.nn.relu) as sc:
+      activation_fn= tf.nn.relu) as sc:
     return sc

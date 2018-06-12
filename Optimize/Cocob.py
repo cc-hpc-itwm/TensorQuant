@@ -27,12 +27,14 @@ import tensorflow as tf
 
 
 class COCOB(Optimizer):
-    def __init__(self, alpha=100, use_locking=False, name='COCOB'):
+    def __init__(self, learning_rate, alpha=100, use_locking=False, name='COCOB', quantizer=None):
         '''
         constructs a new COCOB optimizer
         '''
         super(COCOB, self).__init__(use_locking, name)
         self._alpha = alpha
+        self.quantizer=quantizer
+        self.learning_rate=learning_rate # not needed by Cocob
 
     def _create_slots(self, var_list):
         for v in var_list:
@@ -69,8 +71,11 @@ class COCOB(Optimizer):
         reward_update = tf.maximum(reward-grad*tilde_w,0)
         new_w = -gradients_sum_update/(L_update*(tf.maximum(
             grad_norm_sum_update+L_update,self._alpha*L_update)))*(reward_update+L_update)
-        var_update = var-tilde_w+new_w
-        tilde_w_update=new_w
+        if self.quantizer is not None:
+            var_update = self.quantizer.quantize(var-tilde_w+new_w)
+        else:
+            var_update = var-tilde_w+new_w
+        tilde_w_update=self.quantizer.quantize(new_w)
         
         gradients_sum_update_op = state_ops.assign(gradients_sum, gradients_sum_update)
         grad_norm_sum_update_op = state_ops.assign(grad_norm_sum, grad_norm_sum_update)

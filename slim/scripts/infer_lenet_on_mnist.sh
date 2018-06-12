@@ -3,15 +3,15 @@
 # Start script from slim/ directory!
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/lenet-model
+TRAIN_DIR=./tmp/lenet-model/baseline
 
 # Where the dataset is saved to.
 DATASET_DIR=~/tmp/mnist
 
 # Download the dataset
-python download_and_convert_data.py \
-  --dataset_name=mnist \
-  --dataset_dir=${DATASET_DIR}
+#python download_and_convert_data.py \
+#  --dataset_name=mnist \
+#  --dataset_dir=${DATASET_DIR}
 
 #export CUDA_VISIBLE_DEVICES=0
 # Run evaluation.
@@ -22,9 +22,9 @@ python eval_image_classifier.py \
   --dataset_split_name=test \
   --dataset_dir=${DATASET_DIR} \
   --model_name=lenet \
-  --max_num_batches=100 \
-  --batch_size=10 \
-  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \
+  --max_num_batches=-1 \
+  --batch_size=512 \
+#  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \
 #  --output_file=./experiment_results/test_$$.json \
 #  --comment='Run Description.' \
 #  --extr_qmap=${TRAIN_DIR}/QMaps/weights.json \

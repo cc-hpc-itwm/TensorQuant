@@ -60,8 +60,12 @@ tf.app.flags.DEFINE_string(
     'optimizer_init', 'sparse,1', 'Starting value for optimizer.'
     '')
 
+tf.app.flags.DEFINE_string(
+    'optimizer_mode', 'extr', 'quantization of activations ("extr"), weights ("weight"), or both ("extr_weights").'
+    '')
+
 tf.app.flags.DEFINE_float(
-    'margin', 0.99, 'Margin to achieve.'
+    'margin', 0.999, 'Margin to achieve.'
     'Optimizer aims to be above this margin.')
 
 FLAGS = tf.app.flags.FLAGS
@@ -91,7 +95,7 @@ METRIC = 'accuracy' # name for metric used in the experiment
 ACCURACY_MARGIN = FLAGS.margin # relative accuracy margin to be achieved for each layer
 
 OPTIMIZER_INIT = FLAGS.optimizer_init
-BREAK_CONDITION = 0.0001 # if thresh below this condition
+BREAK_CONDITION = 0.00001 # if thresh below this condition
 
 def run_baseline():
     eval_execution_str="python eval_image_classifier.py "
@@ -116,7 +120,7 @@ def run_evaluation(layer, qtype, thresh):
     qmap={layer:"%s,%f"%(qtype, thresh)}
     with open(TMP_QMAP,'w') as hfile:
         json.dump(qmap, hfile)
-    _type = 'extr'
+    _type = FLAGS.optimizer_mode
 
     # evaluate current setting
     eval_execution_str="python eval_image_classifier.py "
@@ -135,8 +139,10 @@ def run_evaluation(layer, qtype, thresh):
     eval_execution_str+="--output_file=%s "%DATA_FILE
     comment= "type=%s, layer=%s, thresh=%f"%(_type, layer, thresh)
     eval_execution_str+="--comment=\"%s\" "%comment
-    eval_execution_str+="--extr_qmap=%s "%TMP_QMAP # use the same qmap
-    #eval_execution_str+="--weight_qmap=%s "%TMP_QMAP
+    if "extr" in FLAGS.optimizer_mode:
+        eval_execution_str+="--extr_qmap=%s "%TMP_QMAP # use the same qmap
+    if "weight" in FLAGS.optimizer_mode:
+        eval_execution_str+="--weight_qmap=%s "%TMP_QMAP
     os.system(eval_execution_str) # call evaluation script
 
 
@@ -216,7 +222,7 @@ def main(_):
     for key in qmap.keys():
         qmap[key] = "%s,%s"%(qmap_template[key]['type'],
                 qmap_template[key]['thresh'])
-    opt_file = TRAIN_DIR+'/optimal_sparse.json' 
+    opt_file = TRAIN_DIR+'/optimal_sparse_%s.json'%(FLAGS.optimizer_mode) 
     with open(opt_file,'w') as hfile:
             json.dump(qmap, hfile)
     print("Optimal setup written to %s."%(opt_file))

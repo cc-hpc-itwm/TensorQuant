@@ -86,9 +86,13 @@ class HalffpQuantizer(Quantizer_if):
         pass
     def quantize(self,tensor):
         # TF alternative (rounding mantissa):
-        return tf.cast(tensor,tf.float16)
+        # TF alternative is not working with slim, because it produces 2 additional layers at once(float16 and float32). sparsity estimation tries to take both, but fails. 
+        #o_type=tensor.dtype
+        #result=tf.cast(tf.cast(tensor,tf.float16),tf.float32)
+        #print(result)
+        #return result
         # kernel alternative (cutting off mantissa):
-        # return Wrapped.quant_halffp(tensor)
+        return Wrapped.quant_halffp(tensor)
 
 ###############################
 ### Other

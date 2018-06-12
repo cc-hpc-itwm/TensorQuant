@@ -17,42 +17,50 @@ mkdir ${TRAIN_DIR}
 # Where the dataset is saved to.
 DATASET_DIR=~/tmp/mnist
 
+# number of total steps and validation interval
+STEPS=1000
+VAL_INTERVAL=1000
+
 # Download the dataset
 #python download_and_convert_data.py \
 #  --dataset_name=mnist \
 #  --dataset_dir=${DATASET_DIR}
 
-# Run training.
-export CUDA_VISIBLE_DEVICES=0
-python train_image_classifier.py \
-  --train_dir=${TRAIN_DIR} \
-  --dataset_name=mnist \
-  --dataset_split_name=train \
-  --dataset_dir=${DATASET_DIR} \
-  --model_name=lenet \
-  --preprocessing_name=lenet \
-  --max_number_of_steps=3000 \
-  --batch_size=10 \
-  --learning_rate=0.001 \
-  --save_interval_secs=3600 \
-  --save_summaries_secs=3600 \
-  --log_every_n_steps=100 \
-  --optimizer=nm01 \
-  --learning_rate_decay_type=fixed \
-  --end_learning_rate=0.0001 \
-  --intr_grad_quantizer=nearest,4,3 \
-#  --weight_qmap=./tmp/lenet-model/QMaps/weights.json \
+for (( step=VAL_INTERVAL; step<=STEPS; step+=VAL_INTERVAL ))
+do 
 
+    # Run training.
+    export CUDA_VISIBLE_DEVICES=0
+    python train_image_classifier.py \
+      --train_dir=${TRAIN_DIR} \
+      --dataset_name=mnist \
+      --dataset_split_name=train \
+      --dataset_dir=${DATASET_DIR} \
+      --model_name=lenet \
+      --preprocessing_name=lenet \
+      --max_number_of_steps=$step \
+      --batch_size=128 \
+      --learning_rate=0.01 \
+      --save_interval_secs=3600 \
+      --save_summaries_secs=3600 \
+      --log_every_n_steps=100 \
+      --optimizer=lars \
+      --learning_rate_decay_type=polynomial \
+      --end_learning_rate=0.0 \
+      --intr_grad_quantizer=logarithmic \
+    #  --intr_grad_quantizer=nearest,4,3 \
+    #  --intr_grad_quantizer=logarithmic \
+    #  --intr_grad_quantizer=nearest,4,3 \
+    
+    #  --weight_qmap=./tmp/lenet-model/QMaps/weights.json \
 
+    # Run evaluation.
+    python eval_image_classifier.py \
+      --checkpoint_path=${TRAIN_DIR} \
+      --eval_dir=${TRAIN_DIR} \
+      --dataset_name=mnist \
+      --dataset_split_name=test \
+      --dataset_dir=${DATASET_DIR} \
+      --model_name=lenet
 
-
-
-# Run evaluation.
-python eval_image_classifier.py \
-  --checkpoint_path=${TRAIN_DIR} \
-  --eval_dir=${TRAIN_DIR} \
-  --dataset_name=mnist \
-  --dataset_split_name=test \
-  --dataset_dir=${DATASET_DIR} \
-  --model_name=lenet \
-#  --weight_qmap=./tmp/lenet-model/QMaps/weights.json \
+done

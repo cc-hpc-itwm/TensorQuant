@@ -30,8 +30,12 @@ from Quantize import Quantizers
 from Optimize import QSGD
 from Optimize import QRMSProp
 from Optimize import Cocob
+from Optimize import Lars
 from Optimize import MeanThreshold
 from Optimize import NewMethod01
+from Optimize import NewMethod02
+#import kfac
+#from kfac.python.ops import optimizer as opt
 
 import utils
 
@@ -128,6 +132,10 @@ tf.app.flags.DEFINE_float(
     'The momentum for the MomentumOptimizer and RMSPropOptimizer.')
 
 tf.app.flags.DEFINE_float('rmsprop_decay', 0.9, 'Decay term for RMSProp.')
+
+tf.app.flags.DEFINE_float(
+    'damping', 0.001,
+    'Damping for K-FAC optimizer.')
 
 #######################
 # Learning Rate Flags #
@@ -239,9 +247,6 @@ tf.app.flags.DEFINE_string(
     'intr_grad_quantizer', '', 'Word width and fractional digits of gradient quantizer.'
     'If None, no quantizer is applied. Passed as `w,q`.')
 
-###############################
-# Quantization
-###############################
 tf.app.flags.DEFINE_string(
     'intr_qmap', '', 'Location of intrinsic quantizer map.'
     'If empty, no quantizer is applied.')
@@ -296,11 +301,12 @@ def _configure_learning_rate(num_samples_per_epoch, global_step):
                      FLAGS.learning_rate_decay_type)
 
 
-def _configure_optimizer(learning_rate, quantizer=None):
+def _configure_optimizer(logits, learning_rate, quantizer=None):
   """Configures the optimizer used for training.
 
   Args:
     learning_rate: A scalar or `Tensor` learning rate.
+    layer_collection: needed for k-fac optimizer
 
   Returns:
     An instance of an optimizer.
@@ -355,13 +361,34 @@ def _configure_optimizer(learning_rate, quantizer=None):
         optimizer = tf.train.GradientDescentOptimizer(learning_rate)
     else:
         optimizer = QSGD.GradientDescentOptimizer(learning_rate,quantizer=quantizer)
+
   # custom optimizers
   elif FLAGS.optimizer == 'cocob':
-    optimizer = Cocob.COCOB()
+    optimizer = Cocob.COCOB(learning_rate=learning_rate, quantizer=quantizer)
+
+  elif FLAGS.optimizer == 'lars':
+    #loss = tf.get_collection(tf.GraphKeys.LOSSES)[0]
+    optimizer = Lars.Lars(learning_rate, momentum=FLAGS.momentum, quantizer=quantizer)
+
+  elif FLAGS.optimizer == 'kfac':
+    kfac_layer_collection = utils.register_kfac(logits)
+    optimizer = tf.contrib.kfac.optimizer.KfacOptimizer(
+      learning_rate=learning_rate, #0.0001
+      cov_ema_decay=0.95,
+      damping=FLAGS.damping,
+      layer_collection=kfac_layer_collection,
+      momentum=FLAGS.momentum)
+
   elif FLAGS.optimizer == 'mto':
     optimizer = MeanThreshold.MeanThresholdOptimizer(learning_rate)
   elif FLAGS.optimizer == 'nm01':
     optimizer = NewMethod01.NM01(learning_rate, quantizer=quantizer)
+  elif FLAGS.optimizer == 'nm02':
+    optimizer = NewMethod02.NM02(learning_rate,
+        decay=FLAGS.rmsprop_decay,
+        momentum=FLAGS.momentum,
+        epsilon=FLAGS.opt_epsilon,
+        quantizer=quantizer)
   else:
     raise ValueError('Optimizer [%s] was not recognized', FLAGS.optimizer)
   return optimizer
@@ -396,7 +423,10 @@ def _get_init_fn():
   for var in slim.get_model_variables():
     excluded = False
     for exclusion in exclusions:
-      if var.op.name.startswith(exclusion):
+      #if var.op.name.startswith(exclusion):
+      print("var-name: %s, excl-name %s"%(var.op.name,exclusion))
+      if exclusion in var.op.name:
+        print(exclusion)
         excluded = True
         break
     if not excluded:
@@ -483,6 +513,7 @@ def main(_):
     ######################
     # Select the network #
     ######################
+
     network_fn = nets_factory.get_network_fn(
         FLAGS.model_name,
         num_classes=(dataset.num_classes - FLAGS.labels_offset),
@@ -533,6 +564,14 @@ def main(_):
       images, labels = batch_queue.dequeue()
       logits, end_points = network_fn(images)
 
+      # add streaming accuracy
+      summary_name = 'Train Accuracy'
+      correct_prediction = tf.equal(tf.argmax(labels, 1), tf.argmax(logits, 1))
+      acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+      op = tf.summary.scalar(summary_name, acc, collections=[])
+      op = tf.Print(op, [acc], 'Train Acc:')
+      tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+
       #############################
       # Specify the loss function #
       #############################
@@ -543,7 +582,7 @@ def main(_):
       tf.losses.softmax_cross_entropy(
           logits=logits, onehot_labels=labels,
           label_smoothing=FLAGS.label_smoothing, weights=1.0)
-      return end_points
+      return logits, end_points
 
     # Gather initial summaries.
     summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
@@ -559,7 +598,7 @@ def main(_):
     #############
 
     # Add summaries for end_points.
-    end_points = clones[0].outputs
+    logits, end_points = clones[0].outputs
     for end_point in end_points:
       x = end_points[end_point]
       summaries.add(tf.summary.histogram('activations/' + end_point, x))
@@ -622,7 +661,7 @@ def main(_):
     #########################################
     with tf.device(deploy_config.optimizer_device()):
       learning_rate = _configure_learning_rate(dataset.num_samples, global_step)
-      optimizer = _configure_optimizer(learning_rate, intr_grad_quantizer)
+      optimizer = _configure_optimizer(logits, learning_rate, intr_grad_quantizer)
       summaries.add(tf.summary.scalar('learning_rate', learning_rate))
 
     if FLAGS.sync_replicas:
@@ -678,13 +717,12 @@ def main(_):
     # Merge all summaries together.
     summary_op = tf.summary.merge(list(summaries), name='summary_op')
 
-
     ###########################
     # Kicks off the training. #
     ###########################
     slim.learning.train(
         train_tensor,
-        logdir=FLAGS.train_dir,
+        logdir=FLAGS.train_dir+"/logs",
         master=FLAGS.master,
         is_chief=(FLAGS.task == 0),
         init_fn=_get_init_fn(),

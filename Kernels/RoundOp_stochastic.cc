@@ -39,7 +39,7 @@ class RoundOp : public OpKernel {
     rnd_counter=0;    
     srand (time(NULL));
     for(int i=0; i<RND_ENTRIES; ++i) {
-        rnd_numbers[i]= rand() / (RAND_MAX);
+        rnd_numbers[i]= (double)rand() / (double)(RAND_MAX);
     }
   }
 

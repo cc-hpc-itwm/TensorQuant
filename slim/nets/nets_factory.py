@@ -32,8 +32,6 @@ from nets import resnet_v2
 from nets import vgg
 from nets import fcnet
 
-import sys
-sys.path.append('/home/loroch/TensorFlow/TensorLib')
 from Quantize import Quantizers
 from Quantize import Factories
 
@@ -135,7 +133,7 @@ def get_network_fn(name, num_classes, weight_decay=0.0, is_training=False,
         try:
             result=func(images, num_classes, is_training=is_training, reuse=reuse, **layers)
         except:
-            tf.logging.warn('Net %s not has no **kwargs!'%name)
+            tf.logging.warn('Net %s has no **kwargs!'%name)
             result=func(images, num_classes, is_training=is_training)
         return result
 

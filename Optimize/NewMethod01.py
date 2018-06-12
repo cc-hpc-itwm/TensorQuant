@@ -35,36 +35,42 @@ class NM01(Optimizer):
 
         #grad_counter_new = grad_counter*tf.cast(tf.sign(grad)==tf.sign(grad_counter), tf.float32)
         grad_counter_new = tf.minimum(tf.maximum(grad_counter+tf.sign(grad),-64),64)
+        #grad_counter_new += tf.sign(grad)*tf.cast(grad_counter_new == 0,tf.float32)
         #grad_counter_new = grad_counter+tf.sign(grad)
 
+        _grad=grad
         #grad_thresh=0
-        grad_thresh = tf.reduce_mean(tf.abs(grad*grad_counter_new))        
+        grad_thresh = tf.reduce_mean(tf.abs(_grad*grad_counter_new))        
         #grad_thresh = tf.reduce_max(tf.abs(grad))*0.1
-        #reduced_grad = grad*tf.cast(tf.abs(grad*grad_counter_new)>=grad_thresh,tf.float32)
-        reduced_grad=grad*dynamic_range
-        #reduced_grad=grad/(tf.reduce_max(grad))
-        #reduced_grad = grad*tf.cast(tf.sign(grad)==tf.sign(grad_counter_new), tf.float32)
+        #_grad = _grad*tf.cast(tf.abs(grad*grad_counter_new)>=grad_thresh,tf.float32)
+        #_grad=_grad*dynamic_range
+        #_grad=_grad/(tf.reduce_max(_grad))
+        #_grad = grad*tf.cast(tf.sign(grad)==tf.sign(grad_counter_new), tf.float32)
         
         #delta = self.quantizer.quantize(self.lr_tensor * tf.abs(grad_counter_new) * grad)
         #delta_max=tf.reduce_max(self.lr_tensor*reduced_grad)  
         #delta_min=tf.reduce_min(self.lr_tensor*reduced_grad)        
-        delta = self.lr_tensor * tf.abs(grad_counter_new) * reduced_grad
+        #delta = self.quantizer.quantize(self.lr_tensor * tf.abs(grad_counter_new) * _grad)
+        delta = self.lr_tensor * tf.abs(grad_counter_new) * _grad
+        #delta = tf.abs(grad_counter_new) * _grad
         #delta = tf.maximum(tf.minimum(delta,delta_max),delta_min)
 
         var_update = self.quantizer.quantize(var-delta)
 
-        dynamic_range_update = dynamic_range * (1 + 
-                tf.cast(tf.reduce_all(var==var_update),tf.float32))
+        #dynamic_range_update = dynamic_range * (1 + 
+        #        tf.cast(tf.reduce_all(tf.abs(var-var_update)<=0.01),tf.float32))
+        dynamic_range_update = dynamic_range / (1 + 
+                tf.cast(tf.reduce_all(tf.abs(var-var_update)>=0.01),tf.float32))
 
         #reset grad_counter, if update happened
         grad_counter_update = grad_counter_new * tf.cast( 
-                                    (var-var_update) !=0, tf.float32)
+                                    (var-var_update) != 0, tf.float32)
         
         var_update_op = state_ops.assign(var, var_update)
         dynamic_range_update_op = state_ops.assign(dynamic_range, dynamic_range_update)
         grad_counter_update_op = state_ops.assign(grad_counter,
                                          grad_counter_update)
-
+        
         return control_flow_ops.group(*[grad_counter_update_op,
                              var_update_op,
                              dynamic_range_update_op])

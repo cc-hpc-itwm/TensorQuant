@@ -1,8 +1,4 @@
 tmp/
-experiment_results/
-old/
-experiments/
-train_experiments/
 *.so
 __pycache__
 *.pyc
@@ -11,3 +7,4 @@ __pycache__
 startExpPipeline.sh
 *.log
 slim/*.sh
+experiment_results/

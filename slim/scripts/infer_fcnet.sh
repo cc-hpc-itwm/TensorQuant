@@ -10,7 +10,7 @@
 # ./slim/scripts/train_lenet_on_mnist.sh
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/fcnet-model
+TRAIN_DIR=./tmp/fcnet-model/test
 
 # Where the dataset is saved to.
 DATASET_DIR=~/tmp/mnist

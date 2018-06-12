@@ -21,7 +21,7 @@ def fcnet(images, num_classes=10, is_training=False, reuse=None,
         net = slim.flatten(images)
         #print(net)
         net = step_fn(net)
-        net = fully_connected(net, 1024, scope='fc1')
+        #net = fully_connected(net, 1024, scope='fc1')
         #end_points['Flatten'] = net
         logits = fully_connected(net, num_classes, scope='logits')
         #print(logits)
@@ -43,6 +43,7 @@ def fcnet_arg_scope(weight_decay=0.0):
       weights_initializer=tf.truncated_normal_initializer(stddev=0.1),
       #activation_fn=tf.nn.relu
       #activation_fn=step_fn
-      activation_fn=tf.sigmoid
+      #activation_fn=tf.tanh
+      activation_fn=tf.sign
       ) as sc:
     return sc

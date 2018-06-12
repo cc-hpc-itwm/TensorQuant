@@ -25,18 +25,6 @@ from Quantize import QFullyConnect
 
 slim = tf.contrib.slim
 
-####################
-### Quantizer
-#intr_quantizer = None # Quantizers.FixedPointQuantizer(8,4)
-#extr_quantizer = None # Quantizers.NoQuantizer()
-#quantizer = None
-####################
-
-
-#conv2d = Factories.conv2d_factory(intr_quantizer=intr_quantizer, extr_quantizer=extr_quantizer)
-#fully_connected = Factories.fully_connected_factory(intr_quantizer=intr_quantizer, extr_quantizer=extr_quantizer)
-
-
 
 def lenet(images, num_classes=10, is_training=False, reuse=None,
           dropout_keep_prob=0.5,
@@ -79,9 +67,9 @@ def lenet(images, num_classes=10, is_training=False, reuse=None,
     return net
 
   def two_way(in_net, filters, size):
-    subnet1 = conv2d(in_net, filters, [5, 1], padding='VALID', scope='conv_%dx1'%size)
+    subnet1 = conv2d(in_net, filters, [size, 1], padding='VALID', scope='conv_%dx1'%size)
     subnet1 = tf.transpose(subnet1, perm=[0,3,1,2])
-    subnet2 = conv2d(in_net, filters, [1, 5], padding='VALID', scope='conv_1x%d'%size)
+    subnet2 = conv2d(in_net, filters, [1, size], padding='VALID', scope='conv_1x%d'%size)
     subnet2 = tf.transpose(subnet2, perm=[0,3,1,2])
     net = tf.matmul(subnet1,subnet2)
     net = tf.transpose(net, perm=[0,2,3,1])

@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from TensorQuant.Quantize import Quantizers
 import QRMSProp
+import NewMethod02
 
 from tensorflow.python.ops import standard_ops
 
@@ -22,7 +23,8 @@ quantizer=Quantizers.NoQuantizer()
 #quantizer=Quantizers.FixedPointQuantizer_nearest(8,4)
 quantization=Quantizers.FixedPointQuantizer_nearest(fixed_size,fixed_prec)
 
-optimizer = QRMSProp.RMSPropOptimizer(0.1,quantizer=quantizer)
+#optimizer = QRMSProp.RMSPropOptimizer(0.1,quantizer=quantizer)
+optimizer = NewMethod02.NM02(0.1,quantizer=quantizer)
 output = quantization.quantize(inputs * 2)
 loss = tf.nn.l2_loss(output-inputs)
 grads_vars = optimizer.compute_gradients(loss)
@@ -42,8 +44,8 @@ with tf.Session() as sess:
     sess.run(gold_train)
   gold_result=gold_output.eval().flatten()
   result=output.eval().flatten()
-  #print(sess.run(output))
-  #print(sess.run(gold_output))
+  print(sess.run(output))
+  print(sess.run(gold_output))
   #print(sess.run(optimizer.get_slot(inputs,'rms')))
   #print(sess.run(gold_optimizer.get_slot(gold_inputs,'rms')))
 

@@ -142,10 +142,11 @@ def main(_):
     ####################
     # Select the model #
     ####################
-    if 'resnet' in FLAGS.model_name:
-        labels_offset=1
-    else:
-        labels_offset=0
+    #if 'resnet' in FLAGS.model_name:
+    #    labels_offset=1
+    #else:
+    #    labels_offset=0
+    labels_offset=FLAGS.labels_offset
     network_fn = nets_factory.get_network_fn(
         FLAGS.model_name,
         num_classes=(dataset.num_classes - labels_offset),
@@ -210,12 +211,21 @@ def main(_):
         #'Recall_5': slim.metrics.streaming_recall_at_k(logits, labels, 5),
     })
 
+    ####################
+    # Summaries        #
+    ####################
+
+    # Gather initial summaries.
+    #summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
+
     # Print the summaries to screen.
     for name, value in names_to_values.items():
       summary_name = 'eval/%s' % name
+      #summaries.add(tf.summary.scalar('Validation/%s'%name, value))
       op = tf.summary.scalar(summary_name, value, collections=[])
       op = tf.Print(op, [value], summary_name)
       tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+      
 
     # TODO(sguada) use num_epochs=1    
     if FLAGS.max_num_batches and FLAGS.max_num_batches > 0:
@@ -249,42 +259,6 @@ def main(_):
     for key in endpoints.keys():
       activation_layerwise_sparsity[key]=tf.nn.zero_fraction(endpoints[key])
         
-    '''
-    # get the quantized weight tensors for sparsity estimation
-    weights_name_list, weights_list = utils.get_variables_list('weights')
-    biases_name_list, biases_list = utils.get_variables_list('biases')
-
-    # count number of elements in each layer
-    weights_list_param_count = [ utils.get_nb_params_shape(x.get_shape()) 
-                                    for x in weights_list]
-    weights_list_param_count = dict(zip(weights_name_list, weights_list_param_count))
-    biases_list_param_count = [ utils.get_nb_params_shape(x.get_shape()) 
-                                    for x in biases_list]
-    biases_list_param_count = dict(zip(biases_name_list, biases_list_param_count))
-
-    # get zero fraction for each layer
-    weights_layerwise_sparsity_op=[ tf.nn.zero_fraction(x) for x in weights_list]
-    biases_layerwise_sparsity_op=[ tf.nn.zero_fraction(x) for x in biases_list]
-
-    # add overall weights sparsity to summary
-    weights_overall_sparsity_op=[ tf.reshape(x,[tf.size(x)]) for x in weights_list]
-    weights_overall_sparsity_op=tf.concat(weights_overall_sparsity_op,axis=0)
-    #l_weights_values = weights_overall_sparsity_op # a list of all weight values, for histogram
-    summary_name = 'eval/weight_overall_sparsity'
-    weights_overall_sparsity_op=tf.nn.zero_fraction(weights_overall_sparsity_op)
-    op = tf.summary.scalar(summary_name, weights_overall_sparsity_op, collections=[])
-    #op = tf.Print(op, [value], summary_name)
-    tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
-
-    # add overall bias sparsity to summary
-    biases_overall_sparsity_op=[ tf.reshape(x,[tf.size(x)]) for x in biases_list]
-    biases_overall_sparsity_op=tf.concat(biases_overall_sparsity_op,axis=0)
-    summary_name = 'eval/biases_overall_sparsity'
-    biases_overall_sparsity_op=tf.nn.zero_fraction(biases_overall_sparsity_op)
-    op = tf.summary.scalar(summary_name, biases_overall_sparsity_op, collections=[])
-    #op = tf.Print(op, [value], summary_name)
-    tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
-    '''
 
     # Run Session
     config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
@@ -308,8 +282,10 @@ def main(_):
         final_op=final_op,
         variables_to_restore=variables_to_restore,
         session_config=config)
+
     runtime=time.time()-start_time_simu
     buildtime=start_time_simu-start_time_build
+
     accuracy = run_values[0][0]
     weight_sparsity_values = run_values[1]
     bias_sparsity_values = run_values[2]

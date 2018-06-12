@@ -25,11 +25,13 @@ input_width = input_height = 3
 batch_size = 1
 input_channels = 1
 fixed_size = 8
-fixed_prec = 3
-testdata_scale=10
+fixed_prec = 0
+testdata_scale=1
 
 
 inputs_vals = np.random.normal(size=(batch_size,input_width,input_height,input_channels))*testdata_scale
+
+#inputs_vals = np.linspace(-1,1,20)
 
 inputs = tf.constant(inputs_vals,dtype=tf.float32)
 

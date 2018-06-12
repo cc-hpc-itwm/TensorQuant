@@ -1,0 +1,23 @@
+syntax = "proto2";
+
+package myDNN;
+
+message Net {
+  required string name = 1;
+  required int32 num_layers = 2;
+
+  enum Type {
+    MISC = 0;
+    CONV = 1;
+    FC = 2; 
+  }
+
+  message Layer {
+    required string name = 1;
+    repeated int32 shape = 2;
+    repeated float data = 3 [packed=true];
+    optional Type type = 4 [default = MISC];
+  }
+
+  repeated Layer layers = 3;
+}

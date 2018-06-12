@@ -36,7 +36,9 @@ def quantizer_selector(selector_str, arg_list):
     Returns:
         Quantizer object.
     """
-    if selector_str=="zero":
+    if selector_str=="none":
+        quantizer = Quantizers.NoQuantizer()
+    elif selector_str=="zero":
         quantizer = Quantizers.FixedPointQuantizer_zero(
                                     int(arg_list[0]), int(arg_list[1]) )
     elif selector_str=="down":
@@ -52,8 +54,9 @@ def quantizer_selector(selector_str, arg_list):
         quantizer = Quantizers.SparseQuantizer(
                                     float(arg_list[0]) )
     elif selector_str=="logarithmic":
-        quantizer = Quantizers.LogarithmicQuantizer(
-                                    )
+        quantizer = Quantizers.LogarithmicQuantizer()
+    elif selector_str=="fp16":
+        quantizer = Quantizers.HalffpQuantizer()
     else:
         raise ValueError('Quantizer %s not recognized!'%(selector_str))
     return quantizer        
@@ -368,5 +371,195 @@ def get_sparsity_ops(key):
     #op = tf.Print(op, [value], summary_name)
     tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
     return weights_layerwise_sparsity_op, weights_overall_sparsity_op
+
+
+def find_char_positions_in_string(char, string):
+    '''
+    Returns a list which contains the positions of the single character char
+    within the string.
+    '''
+    return [pos for pos, c in enumerate(string) if c == char]
+
+
+def reduce_hierarchy_list(str_list, level):
+    '''
+    Reduces the list of strings str_list to a position defined by level, so that 
+    (example with level=2):
+
+    InceptionV1/Mixed_3b/Branch_1/Conv2d_0a_1x1
+    becomes
+    InceptionV1/Mixed_3b
+
+    Levels start at 1.
+    The returned list does not contain double entries.
+    '''
+    separator='/'
+
+    reduced_list=[]
+    for it in str_list:
+        positions= find_char_positions_in_string(separator, it)
+        if not positions:
+            new_element= it
+        if level>0:
+            if len(positions) < level:
+                new_element= it
+            else:
+                new_element= it[:positions[level-1]]
+        else:
+            if len(positions)< abs(level):
+                new_element=None
+            else:
+                new_element=it[:positions[len(positions)-abs(level)]]
+        if new_element not in reduced_list:
+            reduced_list.append(new_element)
+
+    return reduced_list
+
+
+def remove_net_prefix(str_list):
+    '''
+    Removes the first word before "/"
+    '''
+    separator='/'
+
+    reduced_list=[]
+    for it in str_list:
+        positions= find_char_positions_in_string(separator, it)
+        if not positions:
+            new_element= it
+        else:
+            new_element= it[positions[0]+1:]
+        if new_element not in reduced_list:
+            reduced_list.append(new_element)
+
+    return reduced_list
+
+def get_variables_containing(string):
+    variable_list = []
+    for var in tf.trainable_variables():
+        if string in var.name:
+            variable_list.append(var)
+    return variable_list
+
+def find_tensors_containing(string):
+    tensor_list = []
+    for tensor in tf.get_default_graph().as_graph_def().node:
+        if string in tensor.name:
+            tensor_list.append(tensor)
+    return tensor_list
+
+def get_tensor_containing(string):
+    for tensor in tf.get_default_graph().as_graph_def().node:
+        if string in tensor.name:
+            return tf.get_default_graph().get_tensor_by_name(tensor.name+':0')
+    return None
+
+def get_tensor(string):
+    for tensor in tf.get_default_graph().as_graph_def().node:
+        if string == tensor.name:
+            return tf.get_default_graph().get_tensor_by_name(tensor.name+':0')
+    return None
+
+
+def register_kfac(logits):
+    layer_collection = tf.contrib.kfac.layer_collection.LayerCollection()
+    weights_postfixes=['weights', 'kernels']
+    biases_postfixes=['biases', 'bias']
+    activation_postfixes=['BiasAdd','Conv2D','MatMul']
+
+    #variable_list = tf.trainable_variables()
+    #tensor_list = [tensor.name for tensor in tf.get_default_graph().as_graph_def().node]
+    #print(variable_list)
+    #print(tensor_list)
+    conv_layers = reduce_hierarchy_list([t.name for t in find_tensors_containing('Conv2D')],-1)
+    fc_layers = reduce_hierarchy_list([t.name for t in find_tensors_containing('MatMul')],-1)
+    conv_weights = [get_variables_containing(t) for t in conv_layers]
+    fc_weights = [get_variables_containing(t) for t in fc_layers]
+
+    kfac_layers=[]
+    for layer in conv_layers:
+        layer_info={}
+        layer_info['name']=layer
+        layer_info['type']='Conv2D'
+        kfac_layers.append(layer_info)
+    for layer in fc_layers:
+        layer_info={}
+        layer_info['name']=layer
+        layer_info['type']='MatMul'
+        kfac_layers.append(layer_info)  
+
+    #print(conv_layers)
+    #print(conv_weights)
+    #print(fc_layers)
+
+    for item in kfac_layers:
+        tf.logging.info('K-FAC Item: %s'%item)
+        input=None
+        output=None
+        weights=None
+        biases=None
+        padding=None
+        strides=None
+        if 'Conv2D' in item['type']:
+            for postfix in weights_postfixes:
+                weights = get_variables_containing(item['name']+'/'+postfix)
+                if weights:
+                    weights=weights[0]
+                    break
+            for postfix in biases_postfixes:
+                biases = get_variables_containing(item['name']+'/'+postfix)
+                if biases:
+                    biases=biases[0]
+                    break
+            for postfix in activation_postfixes:
+                activation = get_tensor_containing(item['name']+'/'+postfix)
+                if activation is not None:
+                    break
+            node = find_tensors_containing(item['name']+'/'+item['type'])[0]
+            input = get_tensor(node.input[0])
+            output = activation #get_tensor_containing(item['name']+'/BiasAdd')
+            strides = [int(a) for a in node.attr['strides'].list.i]
+            padding = node.attr['padding'].s.decode()
+            tf.logging.info('   Input: %s'%input)
+            tf.logging.info('   Output: %s'%output)
+            tf.logging.info('   Weights: %s'%weights)
+            tf.logging.info('   Biases: %s'%biases)
+            tf.logging.info('   Strides: %s'%strides)
+            tf.logging.info('   Padding: %s'%padding)
+            layer_collection.register_conv2d((weights,biases), strides, padding, input, output)
+        elif 'MatMul' in item['type']:
+            for postfix in weights_postfixes:
+                weights = get_variables_containing(item['name']+'/'+postfix)
+                if weights:
+                    weights=weights[0]
+                    break
+            for postfix in biases_postfixes:
+                biases = get_variables_containing(item['name']+'/'+postfix)
+                if biases:
+                    biases=biases[0]
+                    break
+            for postfix in activation_postfixes:
+                activation = get_tensor_containing(item['name']+'/'+postfix)
+                if activation is not None:
+                    break
+            node = find_tensors_containing(item['name']+'/'+item['type'])[0]
+            input = get_tensor(node.input[0])
+            output = activation #get_tensor_containing(item['name']+'/BiasAdd')
+            tf.logging.info('   Input: %s'%input)
+            tf.logging.info('   Output: %s'%output)
+            tf.logging.info('   Weights: %s'%weights)
+            tf.logging.info('   Biases: %s'%biases)
+            layer_collection.register_fully_connected((weights,biases), input, output)
+        #elif 'Prediction' in item['type']:
+        #    node = find_tensors_containing(item['name'])[0]
+        #    output = get_tensor_containing(item['name'])
+        #    layer_collection.register_categorical_predictive_distribution(output)
+        else:
+            raise ValueError('kfac layer %s not recognized!'%item['name'])
+        
+    # register logits
+    layer_collection.register_categorical_predictive_distribution(logits)
+    tf.logging.info('K-FAC target: %s'%logits)
+    return layer_collection
 
 
