@@ -2,41 +2,19 @@
 #
 
 # Where the checkpoint and logs will be saved to.
-#MODEL_DIR=./tmp/alexnet-model
-MODEL_DIR=${1}
-MODEL_NAME=${2}
+MODEL_DIR=./tmp/alexnet-model
 
 # Name of Dataset
-#DATASET_NAME=imagenet
-DATASET_NAME=${3}
-
-# Training phase related parameters
-STEPS=1000
-BATCH_SIZE=128
-LEARNING_RATE=0.01
-OPTIMIZER=sgd
-
-
-
-# Image Preprocessing
-PREPROCESSING_NAME=${MODEL_NAME}
+DATASET_NAME=imagenet
 
 # Where the dataset is saved to.
-if [ ${DATASET_NAME} = 'imagenet' ]; then
-    DATASET_DIR=/data/tf
-    DATASET_SPLIT=validation
-fi
-
-if [ ${DATASET_NAME} = 'mnist' ]; then
-    DATASET_DIR=~/tmp/mnist
-    DATASET_SPLIT=test
-fi
+DATASET_DIR=/data/tf
 
 # directory in which training is happening
 TRAIN_DIR=${MODEL_DIR}/retrain_sparse
 rm -r ${TRAIN_DIR}
-mkdir ${TRAIN_DIR}
-
+mkdir $TRAIN_DIR
+basestep=450000
  
 # activations or weights optimization
 OPTIMIZER_MODE="weight" #change also in python script calls! (--weight_qmap=${TRAIN_QMAP})
@@ -48,7 +26,7 @@ TRAIN_QMAP=${QMAP_DIR}/optimal_sparse_${OPTIMIZER_MODE}.json
 RETRAIN_QMAP=${QMAP_DIR}/optimal_sparse_retrained_${OPTIMIZER_MODE}.json
 
 # Name of the Experiment
-EXPERIMENT=${MODEL_NAME}_retrain_sparse_${OPTIMIZER_MODE}_$$
+EXPERIMENT=alexnet_retrain_sparse_${OPTIMIZER_MODE}_$$
 EXP_FOLDER=experiment_results
 EXP_FILE=./${EXP_FOLDER}/${EXPERIMENT}.json
 
@@ -60,9 +38,9 @@ python eval_image_classifier.py \
   --checkpoint_path=${MODEL_DIR}/baseline \
   --eval_dir=/tmp/tf \
   --dataset_name=${DATASET_NAME} \
-  --dataset_split_name=${DATASET_SPLIT} \
+  --dataset_split_name=validation \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=${MODEL_NAME} \
+  --model_name=alexnet_v2 \
   --batch_size=128 \
   --max_num_batches=-1 \
   --output_file=${EXP_FILE} \
@@ -74,28 +52,28 @@ python eval_image_classifier.py \
 ### Sparsity map, but without fine-tuning
 ###########################################
 python sparse_opt.py \
-    --checkpoint_path=${MODEL_DIR}/baseline \
+    --checkpoint_path=${TRAIN_DIR} \
     --dataset_name=${DATASET_NAME} \
-    --dataset_split_name=${DATASET_SPLIT} \
+    --dataset_split_name=validation \
     --dataset_dir=${DATASET_DIR} \
-    --model_name=${MODEL_NAME} \
+    --model_name=alexnet_v2 \
     --batch_size=128 \
     --max_num_batches=8 \
     --layers_file=${LAYERS} \
-    --tmp_qmap=${MODEL_DIR}/tmp_qmap.json \
+    --tmp_qmap=tmp_qmap.json \
+    --data_file=${EXP_FILE} \
     --optimizer_init="sparse,1" \
     --optimizer_mode=${OPTIMIZER_MODE} \
     --opt_qmap=${TRAIN_QMAP} \
-    --margin=1.0 \
-    --data_file=${MODEL_DIR}/optimizer.json \
+    --margin=1.0
 
 python eval_image_classifier.py \
   --checkpoint_path=${MODEL_DIR}/baseline \
   --eval_dir=/tmp/tf \
   --dataset_name=${DATASET_NAME} \
-  --dataset_split_name=${DATASET_SPLIT} \
+  --dataset_split_name=validation \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=${MODEL_NAME} \
+  --model_name=alexnet_v2 \
   --batch_size=128 \
   --max_num_batches=-1 \
   --output_file=${EXP_FILE} \
@@ -112,15 +90,15 @@ python train_image_classifier.py \
   --dataset_name=${DATASET_NAME} \
   --dataset_split_name=train \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=${MODEL_NAME} \
-  --preprocessing_name=${PREPROCESSING_NAME} \
-  --max_number_of_steps=${STEPS} \
-  --batch_size=${BATCH_SIZE} \
+  --model_name=alexnet_v2 \
+  --preprocessing_name=alexnet_v2 \
+  --max_number_of_steps=$(( $basestep+40000 )) \
+  --batch_size=128 \
   --save_interval_secs=3600 \
   --save_summaries_secs=3600 \
   --log_every_n_steps=100 \
-  --optimizer=${OPTIMIZER} \
-  --learning_rate=${LEARNING_RATE} \
+  --optimizer=sgd \
+  --learning_rate=0.1 \
   --weight_decay=0.00004 \
   --weight_qmap=${TRAIN_QMAP} 
 
@@ -128,9 +106,9 @@ python eval_image_classifier.py \
   --checkpoint_path=${TRAIN_DIR} \
   --eval_dir=/tmp/tf \
   --dataset_name=${DATASET_NAME} \
-  --dataset_split_name=${DATASET_SPLIT} \
+  --dataset_split_name=validation \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=${MODEL_NAME} \
+  --model_name=alexnet_v2 \
   --batch_size=128 \
   --max_num_batches=-1 \
   --output_file=${EXP_FILE} \
@@ -143,28 +121,27 @@ python eval_image_classifier.py \
 ###########################################
 python sparse_opt.py \
     --checkpoint_path=${TRAIN_DIR} \
-    --baseline_path=${MODEL_DIR}/baseline \
     --dataset_name=${DATASET_NAME} \
-    --dataset_split_name=${DATASET_SPLIT} \
+    --dataset_split_name=validation \
     --dataset_dir=${DATASET_DIR} \
-    --model_name=${MODEL_NAME} \
+    --model_name=alexnet_v2 \
     --batch_size=128 \
     --max_num_batches=8 \
     --layers_file=${LAYERS} \
-    --tmp_qmap=${MODEL_DIR}/tmp_qmap.json \
+    --tmp_qmap=tmp_qmap.json \
+    --data_file=${EXP_FILE} \
     --optimizer_init="sparse,1" \
     --optimizer_mode=${OPTIMIZER_MODE} \
     --opt_qmap=${RETRAIN_QMAP} \
-    --margin=1.0 \
-    --data_file=${MODEL_DIR}/optimizer.json \
+    --margin=1.0
 
 python eval_image_classifier.py \
   --checkpoint_path=${TRAIN_DIR} \
   --eval_dir=/tmp/tf \
   --dataset_name=${DATASET_NAME} \
-  --dataset_split_name=${DATASET_SPLIT} \
+  --dataset_split_name=validation \
   --dataset_dir=${DATASET_DIR} \
-  --model_name=${MODEL_NAME} \
+  --model_name=alexnet_v2 \
   --batch_size=128 \
   --max_num_batches=-1 \
   --output_file=${EXP_FILE} \

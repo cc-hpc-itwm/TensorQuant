@@ -3,10 +3,11 @@
 # Start script from slim/ directory!
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/lenet-model
+BASE_DIR=./tmp/lenet-model
+TRAIN_DIR=${BASE_DIR}/l1-regularizer
 
 # A .json file with a list of the layers to be quantized
-LAYERS=${TRAIN_DIR}/layers.json
+LAYERS=${BASE_DIR}/layers.json
 # A temporary file location, actual location does not matter.
 QMAP=/tmp/tf/tmp_qmap.json
 
@@ -35,6 +36,7 @@ python sparse_opt.py \
     --data_file=${EXP_FILE} \
     --optimizer_init="sparse,1" \
     --optimizer_mode=${OPTIMIZER_MODE} \
-    --margin=1.0
+    --margin=1.0 \
+    --opt_qmap=${TRAIN_DIR}/opt_${OPTIMIZER_MODE}.json
 
 

@@ -4,6 +4,7 @@
 
 # Where the checkpoint and logs will be saved to.
 TRAIN_DIR=./tmp/inceptionv1-model/retrain_sparse
+#TRAIN_DIR=./tmp/inceptionv1-model/baseline
 
 # Name of Dataset
 DATASET_NAME=imagenet

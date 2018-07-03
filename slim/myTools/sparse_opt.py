@@ -9,9 +9,13 @@ NUMBER_REGEX='(\d*\.?\d*)'
 
 # Flags
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', '/tmp/tfmodel/',
+    'checkpoint_path', None,
     'The directory where the model was written to or an absolute path to a '
     'checkpoint file.')
+
+tf.app.flags.DEFINE_string(
+    'baseline_path', None,
+    'The directory of the baseline. If None, checkpoint_path is used.')
 
 tf.app.flags.DEFINE_string(
     'dataset_name', 'imagenet', 'The name of the dataset to load.')
@@ -21,6 +25,19 @@ tf.app.flags.DEFINE_string(
 
 tf.app.flags.DEFINE_string(
     'dataset_dir', None, 'The directory where the dataset files are stored.')
+
+tf.app.flags.DEFINE_integer(
+    'labels_offset', 0,
+    'An offset for the labels in the dataset. This flag is primarily used to '
+    'evaluate the VGG and ResNet architectures which do not use a background '
+    'class for the ImageNet dataset.')
+
+tf.app.flags.DEFINE_string(
+    'preprocessing_name', None, 'The name of the preprocessing to use. If left '
+    'as `None`, then the model_name flag is used.')
+
+tf.app.flags.DEFINE_integer(
+    'eval_image_size', None, 'Eval image size')
 
 tf.app.flags.DEFINE_integer(
     'batch_size', 100, 'The number of samples in each batch.')
@@ -39,6 +56,10 @@ tf.app.flags.DEFINE_string(
 tf.app.flags.DEFINE_string(
     'tmp_qmap', 'tmp_qmap.json', 'Location of temporarily generated quantizer map.'
     'This file does not have to exist, it will be generated and it is temporary.')
+
+tf.app.flags.DEFINE_string(
+    'opt_qmap', 'opt_qmap.json', 'The final optimal quantizer map.'
+    'Contains the results of the quantizer.')
 
 tf.app.flags.DEFINE_string(
     'intr_qmap', '', 'Location of intrinsic quantizer map.'
@@ -73,17 +94,20 @@ FLAGS = tf.app.flags.FLAGS
 # evaluation configuration
 # pathes to different files and filenames
 TRAIN_DIR=      FLAGS.checkpoint_path # checkpoint directory
+BASELINE_DIR=   FLAGS.baseline_path  or TRAIN_DIR # checkpoint directory for the baseline. If None, it is TRAIN_DIR
 EVAL_DIR=       "/tmp/tf" # directory to dump summaries into
 LAYERS_FILE=    FLAGS.layers_file # available layers
 TMP_QMAP=       FLAGS.tmp_qmap # location of temporary quantizer map
-INTR_QMAP=      FLAGS.intr_qmap # location of intrinsic quantizer map
-EXTR_QMAP=      FLAGS.extr_qmap # location of extrinsic quantizer map
-WEIGHT_QMAP=    FLAGS.weight_qmap # location of weight quantizer map
+INTR_QMAP=      FLAGS.intr_qmap # location of intrinsic quantizer map; NOT IN USE
+EXTR_QMAP=      FLAGS.extr_qmap # location of extrinsic quantizer map; NOT IN USE
+WEIGHT_QMAP=    FLAGS.weight_qmap # location of weight quantizer map; NOT IN USE
+OPT_QMAP=       FLAGS.opt_qmap # location of where the final qmap will be saved to
 
 DATASET_DIR= FLAGS.dataset_dir # Where the dataset is saved to.
 DATASET_NAME= FLAGS.dataset_name # Name of the dataset, used by dataset factory
 DATASET_SPLIT_NAME= FLAGS.dataset_split_name # what subset of the dataset will be used
 MODEL_NAME= FLAGS.model_name # topology name used by factory
+LABELS_OFFSET=FLAGS.labels_offset # label offset for ResNet
 
 MAX_NUM_BATCHES= FLAGS.max_num_batches # how many batches will be processed
 BATCH_SIZE= FLAGS.batch_size # number of samples per batch
@@ -100,7 +124,7 @@ BREAK_CONDITION = 0.00001 # if thresh below this condition
 def run_baseline():
     eval_execution_str="python eval_image_classifier.py "
     # restoring and logging
-    eval_execution_str+="--checkpoint_path=%s "%TRAIN_DIR
+    eval_execution_str+="--checkpoint_path=%s "%BASELINE_DIR
     eval_execution_str+="--eval_dir=%s "%EVAL_DIR
     # dataset
     eval_execution_str+="--dataset_dir=%s "%DATASET_DIR
@@ -110,6 +134,12 @@ def run_baseline():
     eval_execution_str+="--model_name=%s "%MODEL_NAME
     eval_execution_str+="--max_num_batches=%d "%MAX_NUM_BATCHES
     eval_execution_str+="--batch_size=%d "%BATCH_SIZE
+    eval_execution_str+="--labels_offset=%d "%FLAGS.labels_offset
+    if FLAGS.preprocessing_name is not None:
+        eval_execution_str+="--preprocessing_name=%s "%FLAGS.preprocessing_name
+    if FLAGS.eval_image_size is not None:
+        eval_execution_str+="--eval_image_size=%d "%FLAGS.eval_image_size
+    #logging
     eval_execution_str+="--output_file=%s "%DATA_FILE
     eval_execution_str+="--comment=\"%s\" "%("type=baseline")
     os.system(eval_execution_str) # call evaluation script
@@ -135,6 +165,11 @@ def run_evaluation(layer, qtype, thresh):
     eval_execution_str+="--model_name=%s "%MODEL_NAME
     eval_execution_str+="--max_num_batches=%d "%MAX_NUM_BATCHES
     eval_execution_str+="--batch_size=%d "%BATCH_SIZE
+    eval_execution_str+="--labels_offset=%d "%FLAGS.labels_offset
+    if FLAGS.preprocessing_name is not None:
+        eval_execution_str+="--preprocessing_name=%s "%FLAGS.preprocessing_name
+    if FLAGS.eval_image_size is not None:
+        eval_execution_str+="--eval_image_size=%d "%FLAGS.eval_image_size
     # evaluation and quantization
     eval_execution_str+="--output_file=%s "%DATA_FILE
     comment= "type=%s, layer=%s, thresh=%f"%(_type, layer, thresh)
@@ -222,7 +257,7 @@ def main(_):
     for key in qmap.keys():
         qmap[key] = "%s,%s"%(qmap_template[key]['type'],
                 qmap_template[key]['thresh'])
-    opt_file = TRAIN_DIR+'/optimal_sparse_%s.json'%(FLAGS.optimizer_mode) 
+    opt_file = OPT_QMAP
     with open(opt_file,'w') as hfile:
             json.dump(qmap, hfile)
     print("Optimal setup written to %s."%(opt_file))

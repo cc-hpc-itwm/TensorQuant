@@ -40,8 +40,6 @@ from __future__ import print_function
 import collections
 import tensorflow as tf
 
-import sys
-sys.path.append('/home/loroch/TensorFlow/TensorLib')
 from Quantize import QBatchNorm
 from Quantize import QConv
 from Quantize import QFullyConnect
@@ -250,7 +248,7 @@ def resnet_arg_scope(weight_decay=0.0001,
 
   with slim.arg_scope(
       [slim.conv2d, QConv.conv2d],
-      weights_regularizer=slim.l2_regularizer(weight_decay),
+      weights_regularizer=slim.l1_regularizer(weight_decay),
       weights_initializer=slim.variance_scaling_initializer(),
       activation_fn=tf.nn.relu,
       normalizer_fn=slim.batch_norm,

@@ -18,6 +18,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from Quantize import QConv
+from Quantize import QFullyConnect
+
 import tensorflow as tf
 
 slim = tf.contrib.slim
@@ -29,7 +32,7 @@ def cifarnet(images, num_classes=10, is_training=False,
              dropout_keep_prob=0.5,
              prediction_fn=slim.softmax,
              scope='CifarNet',
-             quantization_type=None):
+             **kwargs):
   """Creates a variant of the CifarNet model.
 
   Note that since the output is a set of 'logits', the values fall in the
@@ -58,26 +61,27 @@ def cifarnet(images, num_classes=10, is_training=False,
   """
   end_points = {}
 
+  conv2d=kwargs["conv2d"]
+  fully_connected=kwargs["fully_connected"]
+  max_pool2d=kwargs["max_pool2d"]
+
   with tf.variable_scope(scope, 'CifarNet', [images, num_classes]):
-    net = slim.conv2d(images, 64, [5, 5], scope='conv1')
+    net = conv2d(images, 64, [5, 5], scope='conv1')
     end_points['conv1'] = net
-    net = slim.max_pool2d(net, [2, 2], 2, scope='pool1')
-    end_points['pool1'] = net
+    net = max_pool2d(net, [2, 2], 2, scope='pool1')
     net = tf.nn.lrn(net, 4, bias=1.0, alpha=0.001/9.0, beta=0.75, name='norm1')
-    net = slim.conv2d(net, 64, [5, 5], scope='conv2')
+    net = conv2d(net, 64, [5, 5], scope='conv2')
     end_points['conv2'] = net
     net = tf.nn.lrn(net, 4, bias=1.0, alpha=0.001/9.0, beta=0.75, name='norm2')
-    net = slim.max_pool2d(net, [2, 2], 2, scope='pool2')
-    end_points['pool2'] = net
+    net = max_pool2d(net, [2, 2], 2, scope='pool2')
     net = slim.flatten(net)
-    end_points['Flatten'] = net
-    net = slim.fully_connected(net, 384, scope='fc3')
+    net = fully_connected(net, 384, scope='fc3')
     end_points['fc3'] = net
     net = slim.dropout(net, dropout_keep_prob, is_training=is_training,
                        scope='dropout3')
-    net = slim.fully_connected(net, 192, scope='fc4')
+    net = fully_connected(net, 192, scope='fc4')
     end_points['fc4'] = net
-    logits = slim.fully_connected(net, num_classes,
+    logits = fully_connected(net, num_classes,
                                   biases_initializer=tf.zeros_initializer(),
                                   weights_initializer=trunc_normal(1/192.0),
                                   weights_regularizer=None,
@@ -101,11 +105,11 @@ def cifarnet_arg_scope(weight_decay=0.004):
     An `arg_scope` to use for the inception v3 model.
   """
   with slim.arg_scope(
-      [slim.conv2d],
+      [slim.conv2d, QConv.conv2d],
       weights_initializer=tf.truncated_normal_initializer(stddev=5e-2),
       activation_fn=tf.nn.relu):
     with slim.arg_scope(
-        [slim.fully_connected],
+        [slim.fully_connected, QFullyConnect.fully_connected],
         biases_initializer=tf.constant_initializer(0.1),
         weights_initializer=trunc_normal(0.04),
         weights_regularizer=slim.l2_regularizer(weight_decay),

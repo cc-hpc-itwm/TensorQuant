@@ -11,10 +11,10 @@ MODEL_NAME=${2}
 DATASET_NAME=${3}
 
 # Training phase related parameters
-STEPS=1000
-BATCH_SIZE=128
-LEARNING_RATE=0.01
-OPTIMIZER=sgd
+STEPS=${4}
+BATCH_SIZE=${5}
+LEARNING_RATE=${6}
+OPTIMIZER=${7}
 
 
 
@@ -82,7 +82,7 @@ python sparse_opt.py \
     --batch_size=128 \
     --max_num_batches=8 \
     --layers_file=${LAYERS} \
-    --tmp_qmap=${MODEL_DIR}/tmp_qmap.json \
+    --tmp_qmap=tmp_qmap.json \
     --optimizer_init="sparse,1" \
     --optimizer_mode=${OPTIMIZER_MODE} \
     --opt_qmap=${TRAIN_QMAP} \
@@ -143,7 +143,6 @@ python eval_image_classifier.py \
 ###########################################
 python sparse_opt.py \
     --checkpoint_path=${TRAIN_DIR} \
-    --baseline_path=${MODEL_DIR}/baseline \
     --dataset_name=${DATASET_NAME} \
     --dataset_split_name=${DATASET_SPLIT} \
     --dataset_dir=${DATASET_DIR} \
@@ -151,7 +150,7 @@ python sparse_opt.py \
     --batch_size=128 \
     --max_num_batches=8 \
     --layers_file=${LAYERS} \
-    --tmp_qmap=${MODEL_DIR}/tmp_qmap.json \
+    --tmp_qmap=tmp_qmap.json \
     --optimizer_init="sparse,1" \
     --optimizer_mode=${OPTIMIZER_MODE} \
     --opt_qmap=${RETRAIN_QMAP} \

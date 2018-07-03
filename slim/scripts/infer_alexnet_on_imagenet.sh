@@ -3,7 +3,8 @@
 # Start this script from the slim/ directory!
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/alexnet-model
+TRAIN_DIR=./tmp/alexnet-model/baseline
+#TRAIN_DIR=./tmp/alexnet-model/01l1-l2-regularizer-001
 #TRAIN_DIR=./tmp/alexnet-model/sparse_extr_0.1
 #TRAIN_DIR=./tmp/alexnet-model/logarithmic_long_training
 
@@ -22,9 +23,12 @@ python eval_image_classifier.py \
   --dataset_split_name=validation \
   --dataset_dir=${DATASET_DIR} \
   --model_name=alexnet_v2 \
-  --max_num_batches=100 \
+  --max_num_batches=10 \
   --batch_size=128 \
-#  --weight_qmap=./tmp/alexnet-model/QMaps/optimal_sparse.json \
+  --weight_qmap=${TRAIN_DIR}/opt_weight.json \
+#  --comment='baseline' \
+#  --output_file='./experiment_results/alexnet_baseline.json' \
+
 #  --extr_qmap=./tmp/alexnet-model/QMaps/optimal_sparse.json 
 
   

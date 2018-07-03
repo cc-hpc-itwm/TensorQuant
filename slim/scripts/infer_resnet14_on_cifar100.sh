@@ -3,8 +3,9 @@
 # Start script from slim/ directory!
 
 # Where the checkpoint and logs will be saved to.
-#TRAIN_DIR=./tmp/resnetv1_50-model/cifar100
-TRAIN_DIR=./tmp/resnetv1_50-model/sparse_grad_thresh_0.000001
+TRAIN_DIR=./tmp/resnetv1_14-model/baseline
+#rm -r ${TRAIN_DIR}
+mkdir ${TRAIN_DIR}
 
 #QMAP=${TRAIN_DIR}/QMaps/optimal_sparse.json
 
@@ -26,13 +27,15 @@ python eval_image_classifier.py \
   --dataset_name=${DATASET_NAME} \
   --dataset_split_name=test \
   --dataset_dir=${DATASET_DIR} \
+  --model_name=resnet_v1_14 \
+  --labels_offset=0 \
   --preprocessing_name=cifarnet \
   --eval_image_size=32 \
-  --model_name=resnet_v1_50 \
-  --labels_offset=0 \
   --max_num_batches=-1 \
   --batch_size=128 \
+#  --extr_qmap=${TRAIN_DIR}/opt_extr.json
+#  --weight_qmap=${TRAIN_DIR}/opt_weight.json
 #  --comment="baseline" \
-#  --output_file="resnetv1_50-cifar100.json"
+#  --output_file="resnetv1_14-cifar100.json"
 
 unset CUDA_VISIBLE_DEVICES

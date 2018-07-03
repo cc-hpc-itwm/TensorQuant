@@ -58,8 +58,6 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-import sys
-sys.path.append('/home/loroch/TensorFlow/TensorLib')
 from Quantize import QBatchNorm
 from Quantize import QConv
 from Quantize import QFullyConnect
@@ -120,15 +118,16 @@ def bottleneck(inputs, depth, depth_bottleneck, stride, conv2d, max_pool2d, rate
 
 def resnet_v1(inputs,
               blocks,
-              conv2d, max_pool2d,
               num_classes=None,
               is_training=True,
               global_pool=True,
               output_stride=None,
               include_root_block=True,
+              root_block=None,
               spatial_squeeze=True,
               reuse=None,
-              scope=None):
+              scope=None,
+              **kwargs):
   """Generator for v1 ResNet models.
 
   This function generates a family of ResNet v1 models. See the resnet_v1_*()
@@ -186,6 +185,10 @@ def resnet_v1(inputs,
   Raises:
     ValueError: If the target output_stride is not valid.
   """
+
+  conv2d=kwargs['conv2d'] 
+  max_pool2d=kwargs['max_pool2d'] 
+
   with tf.variable_scope(scope, 'resnet_v1', [inputs], reuse=reuse) as sc:
     end_points_collection = sc.name + '_end_points'
     with slim.arg_scope([slim.conv2d, QConv.conv2d, bottleneck,
@@ -198,7 +201,10 @@ def resnet_v1(inputs,
             if output_stride % 4 != 0:
               raise ValueError('The output_stride needs to be a multiple of 4.')
             output_stride /= 4
-          net = resnet_utils.conv2d_same(net, 64, 7, conv2d=conv2d, stride=2, scope='conv1')
+          if root_block is None:
+            net = resnet_utils.conv2d_same(net, 64, 7, conv2d=conv2d, stride=2, scope='conv1')
+          else:
+            net = resnet_utils.conv2d_same(net, root_block[0], root_block[1], conv2d=conv2d, stride=root_block[2], scope='conv1')
           net = max_pool2d(net, [3, 3], stride=2, scope='pool1')
         net = resnet_utils.stack_blocks_dense(net, blocks, conv2d, max_pool2d, output_stride)
         if global_pool:
@@ -217,6 +223,54 @@ def resnet_v1(inputs,
 resnet_v1.default_image_size = 224
 
 
+def resnet_v1_14(inputs,
+                 num_classes=None,
+                 is_training=True,
+                 global_pool=True,
+                 output_stride=None,
+                 reuse=None,
+                 scope='resnet_v1_14',
+                 **kwargs):
+  """ResNet-14 model. See resnet_v1() for arg and return description."""
+  blocks = [
+      resnet_utils.Block(
+          'block1', bottleneck, [(64, 16, 1)] * 1 + [(64, 16, 2)]),
+      resnet_utils.Block(
+          'block2', bottleneck, [(128, 32, 1)] * 1 + [(128, 32, 2)])
+  ]
+  root_block = [16, 3, 1] # num filters, filter size, stride
+  return resnet_v1(inputs, blocks, num_classes, is_training,
+                   global_pool=global_pool, output_stride=output_stride,
+                   include_root_block=True, root_block=root_block, reuse=reuse, scope=scope,
+                   **kwargs)
+resnet_v1_14.default_image_size = resnet_v1.default_image_size
+
+def resnet_v1_20(inputs,
+                 num_classes=None,
+                 is_training=True,
+                 global_pool=True,
+                 output_stride=None,
+                 reuse=None,
+                 scope='resnet_v1_20',
+                 **kwargs):
+  """ResNet-20 model. See resnet_v1() for arg and return description."""
+  blocks = [
+      resnet_utils.Block(
+          'block1', bottleneck, [(64, 16, 1)] * 1 + [(64, 16, 2)]),
+      resnet_utils.Block(
+          'block2', bottleneck, [(128, 32, 1)] * 1 + [(128, 32, 2)]),
+      resnet_utils.Block(
+          'block3', bottleneck, [(256, 64, 1)] * 1 + [(256, 64, 2)])
+  ]
+  root_block = [16, 3, 1] # num filters, filter size, stride
+  return resnet_v1(inputs, blocks, num_classes, is_training,
+                   global_pool=global_pool, output_stride=output_stride,
+                   include_root_block=True, root_block=root_block, reuse=reuse, scope=scope,
+                   **kwargs)
+resnet_v1_20.default_image_size = resnet_v1.default_image_size
+
+
+
 def resnet_v1_50(inputs,
                  num_classes=None,
                  is_training=True,
@@ -226,8 +280,6 @@ def resnet_v1_50(inputs,
                  scope='resnet_v1_50',
                  **kwargs):
   """ResNet-50 model of [1]. See resnet_v1() for arg and return description."""
-  conv2d=kwargs['conv2d'] 
-  max_pool2d=kwargs['max_pool2d'] 
   blocks = [
       resnet_utils.Block(
           'block1', bottleneck, [(256, 64, 1)] * 2 + [(256, 64, 2)]),
@@ -238,9 +290,10 @@ def resnet_v1_50(inputs,
       resnet_utils.Block(
           'block4', bottleneck, [(2048, 512, 1)] * 3)
   ]
-  return resnet_v1(inputs, blocks, conv2d, max_pool2d, num_classes, is_training,
+  return resnet_v1(inputs, blocks, num_classes, is_training,
                    global_pool=global_pool, output_stride=output_stride,
-                   include_root_block=True, reuse=reuse, scope=scope)
+                   include_root_block=True, reuse=reuse, scope=scope,
+                   **kwargs)
 resnet_v1_50.default_image_size = resnet_v1.default_image_size
 
 
@@ -277,8 +330,6 @@ def resnet_v1_152(inputs,
                   scope='resnet_v1_152',
                   **kwargs):
   """ResNet-152 model of [1]. See resnet_v1() for arg and return description."""
-  conv2d=kwargs['conv2d'] 
-  max_pool2d=kwargs['max_pool2d'] 
   blocks = [
       resnet_utils.Block(
           'block1', bottleneck, [(256, 64, 1)] * 2 + [(256, 64, 2)]),
@@ -288,9 +339,10 @@ def resnet_v1_152(inputs,
           'block3', bottleneck, [(1024, 256, 1)] * 35 + [(1024, 256, 2)]),
       resnet_utils.Block(
           'block4', bottleneck, [(2048, 512, 1)] * 3)]
-  return resnet_v1(inputs, blocks, conv2d, max_pool2d, num_classes, is_training,
+  return resnet_v1(inputs, blocks, num_classes, is_training,
                    global_pool=global_pool, output_stride=output_stride,
-                   include_root_block=True, reuse=reuse, scope=scope)
+                   include_root_block=True, reuse=reuse, scope=scope,
+                   **kwargs)
 resnet_v1_152.default_image_size = resnet_v1.default_image_size
 
 

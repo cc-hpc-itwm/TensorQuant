@@ -24,8 +24,8 @@ python eval_image_classifier.py \
   --model_name=lenet \
   --max_num_batches=-1 \
   --batch_size=512 \
-#  --weight_qmap=${TRAIN_DIR}/QMaps/weights.json \
-#  --output_file=./experiment_results/test_$$.json \
-#  --comment='Run Description.' \
+  --comment='baseline' \
+  --output_file='./experiment_results/lenet_baseline.json' \
+#  --weight_qmap=${TRAIN_DIR}/opt_weight.json \
 #  --extr_qmap=${TRAIN_DIR}/QMaps/weights.json \
 #  --intr_qmap=${TRAIN_DIR}/QMaps/weights.json

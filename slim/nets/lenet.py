@@ -70,13 +70,13 @@ def lenet(images, num_classes=10, is_training=False, reuse=None,
         net = max_pool2d(net, [2, 2], 2, scope='pool2')
         end_points['pool2'] = net
         net = slim.flatten(net)
-        end_points['Flatten'] = net
         net = fully_connected(net, 1024, scope='fc3')
+        end_points['fc3'] = net
         net = slim.dropout(net, dropout_keep_prob, is_training=is_training,
                            scope='dropout3')
         logits = fully_connected(net, num_classes, activation_fn=None,
                                       scope='fc4')
-  end_points['Logits'] = logits
+  end_points['fc4'] = logits
   end_points['Predictions'] = prediction_fn(logits, scope='Predictions')
 
   return logits, end_points

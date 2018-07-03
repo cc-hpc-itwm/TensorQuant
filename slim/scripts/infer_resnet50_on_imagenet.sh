@@ -3,9 +3,7 @@
 # Start script from slim/ directory!
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/resnetv1_50-model
-
-QMAP=${TRAIN_DIR}/QMaps/optimal_sparse.json
+TRAIN_DIR=./tmp/resnetv1_50-model/l1-regularizer
 
 # Name of Dataset
 DATASET_NAME=imagenet
@@ -14,7 +12,7 @@ DATASET_NAME=imagenet
 DATASET_DIR=/data/tf
 
 # Run evaluation.
-export CUDA_VISIBLE_DEVICES=0
+#export CUDA_VISIBLE_DEVICES=0
 
 python eval_image_classifier.py \
   --checkpoint_path=${TRAIN_DIR} \
@@ -24,9 +22,9 @@ python eval_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=resnet_v1_50 \
   --labels_offset=1 \
-  --max_num_batches=60 \
-  --batch_size=10 \
-  --extr_qmap=${QMAP} \
-  --weight_qmap=${QMAP}
+  --max_num_batches=1 \
+  --batch_size=128 \
+#  --comment='baseline' \
+#  --output_file='./experiment_results/resnet50_baseline.json' \
+#  --weight_qmap=${TRAIN_DIR}/opt_weight.json
 
-unset CUDA_VISIBLE_DEVICES

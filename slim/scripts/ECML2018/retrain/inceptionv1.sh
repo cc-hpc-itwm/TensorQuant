@@ -14,31 +14,31 @@ DATASET_NAME=imagenet
 DATASET_DIR=/data/tf
 
 # directory in which training is happening
-TRAIN_DIR=${MODEL_DIR}/retrain_sparse
-rm -r ${TRAIN_DIR}
-cp -r ${MODEL_DIR}/baseline $TRAIN_DIR
-basestep=0
+TRAIN_DIR=${MODEL_DIR}/imagenet
+#rm -r ${TRAIN_DIR}
+#mkdir ${TRAIN_DIR}
+basestep=300000
  
 # Run training.
 # export CUDA_VISIBLE_DEVICES=0
 python train_image_classifier.py \
   --train_dir=${TRAIN_DIR} \
+  --checkpoint_path=${MODEL_DIR}/baseline \
   --dataset_name=${DATASET_NAME} \
   --dataset_split_name=train \
   --dataset_dir=${DATASET_DIR} \
   --model_name=inception_v1 \
   --preprocessing_name=inception_v1 \
-  --max_number_of_steps=$(( $basestep+10000 )) \
+  --max_number_of_steps=$(( $basestep+500000 )) \
   --batch_size=32 \
-  --save_interval_secs=600 \
-  --save_summaries_secs=600 \
+  --save_interval_secs=3600 \
+  --save_summaries_secs=3600 \
   --log_every_n_steps=100 \
   --optimizer=rmsprop \
   --learning_rate=0.01 \
   --weight_decay=0.00004 \
   --ignore_missing_vars=True \
-  --checkpoint_exclude_scopes="XXXXX" \
-  --weight_qmap=${QMAP_DIR}/optimal_sparse_weight.json
+  #--weight_qmap=${QMAP_DIR}/optimal_sparse_weight.json
 
 # Run evaluation.
 python eval_image_classifier.py \
@@ -49,7 +49,7 @@ python eval_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=inception_v1 \
   --batch_size=128 \
-  --max_num_batches=400 \
-  --weight_qmap=${QMAP_DIR}/optimal_sparse_weight.json
+  --max_num_batches=-1 \
+  #--weight_qmap=${QMAP_DIR}/optimal_sparse_weight.json
 
 

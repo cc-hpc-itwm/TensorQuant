@@ -41,17 +41,17 @@ do
       --max_number_of_steps=$step \
       --batch_size=128 \
       --learning_rate=0.01 \
+      --weight_decay=0.00004 \
       --save_interval_secs=3600 \
       --save_summaries_secs=3600 \
       --log_every_n_steps=100 \
-      --optimizer=lars \
-      --learning_rate_decay_type=polynomial \
-      --end_learning_rate=0.0 \
-      --intr_grad_quantizer=logarithmic \
+      --optimizer=sgd \
+    #  --learning_rate_decay_type=polynomial \
+    #  --end_learning_rate=0.0 \
+    #  --intr_grad_quantizer=logarithmic \
     #  --intr_grad_quantizer=nearest,4,3 \
     #  --intr_grad_quantizer=logarithmic \
     #  --intr_grad_quantizer=nearest,4,3 \
-    
     #  --weight_qmap=./tmp/lenet-model/QMaps/weights.json \
 
     # Run evaluation.

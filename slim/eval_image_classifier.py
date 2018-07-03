@@ -259,7 +259,6 @@ def main(_):
     for key in endpoints.keys():
       activation_layerwise_sparsity[key]=tf.nn.zero_fraction(endpoints[key])
         
-
     # Run Session
     config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
     #config.gpu_options.allocator_type = 'BFC'

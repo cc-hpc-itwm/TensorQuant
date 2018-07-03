@@ -502,7 +502,8 @@ def main(_):
 
     # Create global_step
     with tf.device(deploy_config.variables_device()):
-      global_step = slim.create_global_step()
+      #global_step = slim.create_global_step()
+      global_step = tf.train.create_global_step()
 
     ######################
     # Select the dataset #
@@ -565,7 +566,7 @@ def main(_):
       logits, end_points = network_fn(images)
 
       # add streaming accuracy
-      summary_name = 'Train Accuracy'
+      summary_name = 'Train_Accuracy'
       correct_prediction = tf.equal(tf.argmax(labels, 1), tf.argmax(logits, 1))
       acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
       op = tf.summary.scalar(summary_name, acc, collections=[])
@@ -617,11 +618,11 @@ def main(_):
     weights_name_list, weights_list = utils.get_variables_list('weights')
     biases_name_list, biases_list = utils.get_variables_list('biases')
     for weight in weights_list:
-      summaries.add(tf.summary.scalar('weight-sparsity/'+weight.name, tf.nn.zero_fraction(weight)))
-      summaries.add(tf.summary.histogram('quantized_weights/'+weight.name, weight))    
+      summaries.add(tf.summary.scalar('weight-sparsity/'+weight.name[:-2], tf.nn.zero_fraction(weight)))
+      summaries.add(tf.summary.histogram('quantized_weights/'+weight.name[:-2], weight))    
     for bias in biases_list:
-      summaries.add(tf.summary.scalar('weight-sparsity/'+bias.name, tf.nn.zero_fraction(bias)))
-      summaries.add(tf.summary.histogram('quantized_weights/'+bias.name, bias))
+      summaries.add(tf.summary.scalar('weight-sparsity/'+bias.name[:-2], tf.nn.zero_fraction(bias)))
+      summaries.add(tf.summary.histogram('quantized_weights/'+bias.name[:-2], bias))
     # summaries for overall sparsity  
     if weights_list is not []:    
         weights_overall_sparsity=[ tf.reshape(x,[tf.size(x)]) for x in weights_list]
@@ -695,6 +696,16 @@ def main(_):
         clones_gradients=[(extr_grad_quantizer.quantize(gv[0]),gv[1]) 
                             for gv in clones_gradients]
     
+    # overall gradient sparsity
+    gradient_overall_sparsity_op=[ tf.reshape(x[0],[tf.size(x[0])]) for x in clones_gradients]
+    gradient_overall_sparsity_op=tf.concat(gradient_overall_sparsity_op,axis=0)
+    summary_name = 'gradient-sparsity/overall'
+    gradient_overall_sparsity_op=tf.nn.zero_fraction(gradient_overall_sparsity_op)
+    op = tf.summary.scalar(summary_name, gradient_overall_sparsity_op, collections=[])
+    #op = tf.Print(op, [value], summary_name)
+    tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+    
+
     # Add gradients to summary
     for gv in clones_gradients:
         summaries.add(tf.summary.histogram('gradient/%s'%gv[1].op.name, gv[0]))
@@ -717,12 +728,13 @@ def main(_):
     # Merge all summaries together.
     summary_op = tf.summary.merge(list(summaries), name='summary_op')
 
+
     ###########################
     # Kicks off the training. #
     ###########################
     slim.learning.train(
         train_tensor,
-        logdir=FLAGS.train_dir+"/logs",
+        logdir=FLAGS.train_dir,
         master=FLAGS.master,
         is_chief=(FLAGS.task == 0),
         init_fn=_get_init_fn(),

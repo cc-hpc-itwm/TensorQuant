@@ -3,7 +3,7 @@
 # Start script from slim/ directory!
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/alexnet-model/sgd_lr1
+TRAIN_DIR=./tmp/alexnet-model/base_rmsprop_02
 #rm -r ${TRAIN_DIR}
 mkdir ${TRAIN_DIR}
 
@@ -36,8 +36,9 @@ python train_image_classifier.py \
   --save_interval_secs=3600 \
   --save_summaries_secs=3600 \
   --log_every_n_steps=1000 \
-  --optimizer=sgd \
+  --optimizer=rmsprop \
   --learning_rate=0.1 \
+  --weight_decay=0.00004
   #--intr_grad_quantizer=logarithmic \
   #--weight_qmap=./tmp/alexnet-model/QMaps/weights.json
   #--intr_grad_quantizer=nearest,32,16
