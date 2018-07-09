@@ -5,6 +5,11 @@ from tensorflow.python.framework import constant_op
 from tensorflow.python.training.optimizer import Optimizer
 import tensorflow as tf
 
+"""
+SGD with LARS.
+https://arxiv.org/abs/1708.03888
+"""
+
 class Lars(Optimizer):
     def __init__(self, learning_rate, momentum=0.9, weight_decay=0.0005, eta=0.001, use_locking=False, name='Lars', quantizer=None):
         '''

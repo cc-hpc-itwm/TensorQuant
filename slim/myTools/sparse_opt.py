@@ -1,5 +1,6 @@
 import tensorflow as tf
-import utils
+import Quantize.utils
+from misc import utils
 import json
 import os
 
@@ -62,18 +63,6 @@ tf.app.flags.DEFINE_string(
     'Contains the results of the quantizer.')
 
 tf.app.flags.DEFINE_string(
-    'intr_qmap', '', 'Location of intrinsic quantizer map.'
-    '')
-
-tf.app.flags.DEFINE_string(
-    'extr_qmap', '', 'Location of extrinsic quantizer map.'
-    '')
-
-tf.app.flags.DEFINE_string(
-    'weight_qmap', '', 'Location of weight quantizer map.'
-    '')
-
-tf.app.flags.DEFINE_string(
     'data_file', 'results.json', 'Location of file with last results.'
     '')
 
@@ -98,9 +87,6 @@ BASELINE_DIR=   FLAGS.baseline_path  or TRAIN_DIR # checkpoint directory for the
 EVAL_DIR=       "/tmp/tf" # directory to dump summaries into
 LAYERS_FILE=    FLAGS.layers_file # available layers
 TMP_QMAP=       FLAGS.tmp_qmap # location of temporary quantizer map
-INTR_QMAP=      FLAGS.intr_qmap # location of intrinsic quantizer map; NOT IN USE
-EXTR_QMAP=      FLAGS.extr_qmap # location of extrinsic quantizer map; NOT IN USE
-WEIGHT_QMAP=    FLAGS.weight_qmap # location of weight quantizer map; NOT IN USE
 OPT_QMAP=       FLAGS.opt_qmap # location of where the final qmap will be saved to
 
 DATASET_DIR= FLAGS.dataset_dir # Where the dataset is saved to.
@@ -198,7 +184,7 @@ def main(_):
     with open(LAYERS_FILE,'r') as hfile:
         layers = json.load(hfile)
     qmap_template = dict.fromkeys(layers)
-    qtype, qargs = utils.split_quantizer_str(OPTIMIZER_INIT)
+    qtype, qargs = Quantize.utils.split_quantizer_str(OPTIMIZER_INIT)
     # preprocess quantizer settings
     for key in qmap_template:
         qmap_template[key] = {"type":qtype, "thresh":float(qargs[0]), 

@@ -1,8 +1,14 @@
+"""
+Make a histogram of all variables.
+
+Author: Dominik Loroch
+"""
+
 import tensorflow as tf
 from TensorQuant.Quantize import Quantizers
 import json
 import matplotlib.pyplot as plt
-from TensorQuant.slim import utils
+from misc import utils
 import numpy as np
 
 slim = tf.contrib.slim
@@ -22,7 +28,7 @@ with tf.Session() as sess:
     saver = tf.train.import_meta_graph(MODEL+'/model.meta')
     saver.restore(sess, checkpoint_path)
     print('Restorable variables:')
-    variables = utils.get_all_variable_as_list('weights').eval()
+    variables = utils.get_all_variables_as_single_op('weights').eval()
     for var in slim.get_variables_to_restore():
         print('> %s'%(var.name))
         export_data[var.name]=var.eval().tolist()

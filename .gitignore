@@ -8,3 +8,4 @@ startExpPipeline.sh
 *.log
 slim/*.sh
 experiment_results/
+old/

@@ -26,18 +26,15 @@ from deployment import model_deploy
 from nets import nets_factory
 from preprocessing import preprocessing_factory
 
+
 from Quantize import Quantizers
-from Optimize import QSGD
-from Optimize import QRMSProp
-from Optimize import Cocob
-from Optimize import Lars
-from Optimize import MeanThreshold
+from Optimize import *
 from Optimize import NewMethod01
 from Optimize import NewMethod02
-#import kfac
-#from kfac.python.ops import optimizer as opt
 
-import utils
+from misc import utils
+from misc import tb_utils
+import Quantize.utils
 
 slim = tf.contrib.slim
 
@@ -157,10 +154,10 @@ tf.app.flags.DEFINE_float(
     'label_smoothing', 0.0, 'The amount of label smoothing.')
 
 tf.app.flags.DEFINE_float(
-    'learning_rate_decay_factor', 0.94, 'Learning rate decay factor.')
+    'learning_rate_decay_factor', 0.5, 'Learning rate decay factor.')
 
 tf.app.flags.DEFINE_float(
-    'num_epochs_per_decay', 2.0,
+    'num_epochs_per_decay', 5.0,
     'Number of epochs after which learning rate decays.')
 
 tf.app.flags.DEFINE_bool(
@@ -240,12 +237,12 @@ FLAGS = tf.app.flags.FLAGS
 ######################
 
 tf.app.flags.DEFINE_string(
-    'extr_grad_quantizer', '', 'Word width and fractional digits of gradient quantizer.'
-    'If None, no quantizer is applied. Passed as `w,q`.')
+    'extr_grad_quantizer', '', 'Extrinsic gradient quantizer.'
+    'If "", no quantizer is applied.')
 
 tf.app.flags.DEFINE_string(
-    'intr_grad_quantizer', '', 'Word width and fractional digits of gradient quantizer.'
-    'If None, no quantizer is applied. Passed as `w,q`.')
+    'intr_grad_quantizer', '', 'Intrinsic gradient quantizer.'
+    'If "", no quantizer is applied.')
 
 tf.app.flags.DEFINE_string(
     'intr_qmap', '', 'Location of intrinsic quantizer map.'
@@ -305,8 +302,9 @@ def _configure_optimizer(logits, learning_rate, quantizer=None):
   """Configures the optimizer used for training.
 
   Args:
+    logits: needed for k-fac optimizer.
     learning_rate: A scalar or `Tensor` learning rate.
-    layer_collection: needed for k-fac optimizer
+    quantizer: Intrinsic quantizer for optimizers.
 
   Returns:
     An instance of an optimizer.
@@ -320,16 +318,25 @@ def _configure_optimizer(logits, learning_rate, quantizer=None):
         learning_rate,
         rho=FLAGS.adadelta_rho,
         epsilon=FLAGS.opt_epsilon)
+
   elif FLAGS.optimizer == 'adagrad':
-    optimizer = tf.train.AdagradOptimizer(
-        learning_rate,
-        initial_accumulator_value=FLAGS.adagrad_initial_accumulator_value)
+    if quantizer is None:
+        optimizer = tf.train.AdagradOptimizer(
+            learning_rate,
+            initial_accumulator_value=FLAGS.adagrad_initial_accumulator_value)
+    else:
+        optimizer = QAdagrad.QAdagradOptimizer(
+            learning_rate,
+            initial_accumulator_value=FLAGS.adagrad_initial_accumulator_value,
+            quantizer=quantizer)
+
   elif FLAGS.optimizer == 'adam':
     optimizer = tf.train.AdamOptimizer(
         learning_rate,
         beta1=FLAGS.adam_beta1,
         beta2=FLAGS.adam_beta2,
         epsilon=FLAGS.opt_epsilon)
+
   elif FLAGS.optimizer == 'ftrl':
     optimizer = tf.train.FtrlOptimizer(
         learning_rate,
@@ -342,6 +349,7 @@ def _configure_optimizer(logits, learning_rate, quantizer=None):
         learning_rate,
         momentum=FLAGS.momentum,
         name='Momentum')
+
   elif FLAGS.optimizer == 'rmsprop':
     if quantizer is None:
       optimizer = tf.train.RMSPropOptimizer(
@@ -356,29 +364,31 @@ def _configure_optimizer(logits, learning_rate, quantizer=None):
         momentum=FLAGS.momentum,
         epsilon=FLAGS.opt_epsilon,
         quantizer=quantizer)
+
   elif FLAGS.optimizer == 'sgd':
     if quantizer is None:
         optimizer = tf.train.GradientDescentOptimizer(learning_rate)
     else:
         optimizer = QSGD.GradientDescentOptimizer(learning_rate,quantizer=quantizer)
 
-  # custom optimizers
   elif FLAGS.optimizer == 'cocob':
-    optimizer = Cocob.COCOB(learning_rate=learning_rate, quantizer=quantizer)
+    optimizer = Cocob.COCOB(quantizer=quantizer)
 
   elif FLAGS.optimizer == 'lars':
     #loss = tf.get_collection(tf.GraphKeys.LOSSES)[0]
     optimizer = Lars.Lars(learning_rate, momentum=FLAGS.momentum, quantizer=quantizer)
 
   elif FLAGS.optimizer == 'kfac':
-    kfac_layer_collection = utils.register_kfac(logits)
-    optimizer = tf.contrib.kfac.optimizer.KfacOptimizer(
+    kfac_layer_collection = Kfac.register_kfac(logits)
+    #optimizer = tf.contrib.kfac.optimizer.KfacOptimizer(
+    optimizer = Kfac.KfacOptimizer(
       learning_rate=learning_rate, #0.0001
       cov_ema_decay=0.95,
       damping=FLAGS.damping,
       layer_collection=kfac_layer_collection,
       momentum=FLAGS.momentum)
 
+  # custom optimizers
   elif FLAGS.optimizer == 'mto':
     optimizer = MeanThreshold.MeanThresholdOptimizer(learning_rate)
   elif FLAGS.optimizer == 'nm01':
@@ -475,20 +485,20 @@ def main(_):
     #######################
 
     if FLAGS.intr_grad_quantizer is not '':
-        qtype, qargs= utils.split_quantizer_str(FLAGS.intr_grad_quantizer)
-        intr_grad_quantizer= utils.quantizer_selector(qtype, qargs)
+        qtype, qargs= Quantize.utils.split_quantizer_str(FLAGS.intr_grad_quantizer)
+        intr_grad_quantizer= Quantize.utils.quantizer_selector(qtype, qargs)
     else:
         intr_grad_quantizer= None
 
     if FLAGS.extr_grad_quantizer is not '':
-        qtype, qargs= utils.split_quantizer_str(FLAGS.extr_grad_quantizer)
-        extr_grad_quantizer= utils.quantizer_selector(qtype, qargs)
+        qtype, qargs= Quantize.utils.split_quantizer_str(FLAGS.extr_grad_quantizer)
+        extr_grad_quantizer= Quantize.utils.quantizer_selector(qtype, qargs)
     else:
         extr_grad_quantizer= None
 
-    intr_q_map=utils.quantizer_map(FLAGS.intr_qmap)
-    extr_q_map=utils.quantizer_map(FLAGS.extr_qmap)
-    weight_q_map=utils.quantizer_map(FLAGS.weight_qmap)
+    intr_q_map=Quantize.utils.quantizer_map(FLAGS.intr_qmap)
+    extr_q_map=Quantize.utils.quantizer_map(FLAGS.extr_qmap)
+    weight_q_map=Quantize.utils.quantizer_map(FLAGS.weight_qmap)
 
     #######################
     # Config model_deploy #
@@ -617,32 +627,33 @@ def main(_):
     # Add summaries for sparsity.
     weights_name_list, weights_list = utils.get_variables_list('weights')
     biases_name_list, biases_list = utils.get_variables_list('biases')
+
     for weight in weights_list:
       summaries.add(tf.summary.scalar('weight-sparsity/'+weight.name[:-2], tf.nn.zero_fraction(weight)))
       summaries.add(tf.summary.histogram('quantized_weights/'+weight.name[:-2], weight))    
     for bias in biases_list:
       summaries.add(tf.summary.scalar('weight-sparsity/'+bias.name[:-2], tf.nn.zero_fraction(bias)))
       summaries.add(tf.summary.histogram('quantized_weights/'+bias.name[:-2], bias))
-    # summaries for overall sparsity  
+    # summaries for total sparsity  
     if weights_list is not []:    
-        weights_overall_sparsity=[ tf.reshape(x,[tf.size(x)]) for x in weights_list]
-        weights_overall_sparsity=tf.concat(weights_overall_sparsity,axis=0)
-        summaries.add(tf.summary.scalar('weight-sparsity/weights-overall', 
-                                tf.nn.zero_fraction(weights_overall_sparsity)))
+        weights_total_sparsity=[ tf.reshape(x,[tf.size(x)]) for x in weights_list]
+        weights_total_sparsity=tf.concat(weights_total_sparsity,axis=0)
+        summaries.add(tf.summary.scalar('weight-sparsity/weights-total', 
+                                tf.nn.zero_fraction(weights_total_sparsity)))
     if biases_list is not []:
-        biases_overall_sparsity=[ tf.reshape(x,[tf.size(x)]) for x in biases_list]
-        biases_overall_sparsity=tf.concat(biases_overall_sparsity,axis=0)
-        summaries.add(tf.summary.scalar('weight-sparsity/biases-overall', 
-                                tf.nn.zero_fraction(biases_overall_sparsity)))
+        biases_total_sparsity=[ tf.reshape(x,[tf.size(x)]) for x in biases_list]
+        biases_total_sparsity=tf.concat(biases_total_sparsity,axis=0)
+        summaries.add(tf.summary.scalar('weight-sparsity/biases-total', 
+                                tf.nn.zero_fraction(biases_total_sparsity)))
     
     # Add layerwise weight heatmaps
     for it in range(len(weights_name_list)):
         name = weights_name_list[it]
         weight = weights_list[it]
         if weight.get_shape().ndims == 4:
-            image = utils.heatmap_conv(weight, pad = 1)
+            image = tb_utils.heatmap_conv(weight, pad = 1)
         elif weight.get_shape().ndims == 2:
-            image = utils.heatmap_fullyconnect(weight, pad = 1)
+            image = tb_utils.heatmap_fullyconnect(weight, pad = 1)
         else:
             continue
         summaries.add(tf.summary.image(name, image)) 
@@ -696,12 +707,12 @@ def main(_):
         clones_gradients=[(extr_grad_quantizer.quantize(gv[0]),gv[1]) 
                             for gv in clones_gradients]
     
-    # overall gradient sparsity
-    gradient_overall_sparsity_op=[ tf.reshape(x[0],[tf.size(x[0])]) for x in clones_gradients]
-    gradient_overall_sparsity_op=tf.concat(gradient_overall_sparsity_op,axis=0)
-    summary_name = 'gradient-sparsity/overall'
-    gradient_overall_sparsity_op=tf.nn.zero_fraction(gradient_overall_sparsity_op)
-    op = tf.summary.scalar(summary_name, gradient_overall_sparsity_op, collections=[])
+    # total gradient sparsity
+    gradient_total_sparsity_op=[ tf.reshape(x[0],[tf.size(x[0])]) for x in clones_gradients]
+    gradient_total_sparsity_op=tf.concat(gradient_total_sparsity_op,axis=0)
+    summary_name = 'gradient-sparsity/total'
+    gradient_total_sparsity_op=tf.nn.zero_fraction(gradient_total_sparsity_op)
+    op = tf.summary.scalar(summary_name, gradient_total_sparsity_op, collections=[])
     #op = tf.Print(op, [value], summary_name)
     tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
     

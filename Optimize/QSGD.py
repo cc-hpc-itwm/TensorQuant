@@ -27,7 +27,7 @@ class GradientDescentOptimizer(optimizer.Optimizer):
       use_locking: If True use locks for update operations.
       name: Optional name prefix for the operations created when applying
         gradients. Defaults to "GradientDescent".
-      quantizer: Quantizer applied for intrinsic quantization.
+      quantizer: Intrinsic quantizer, applied to new value for variable before it is assigned.
     """
     super(GradientDescentOptimizer, self).__init__(use_locking, name)
     self._learning_rate = learning_rate

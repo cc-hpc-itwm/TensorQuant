@@ -92,6 +92,7 @@ def lenet_arg_scope(weight_decay=0.0):
   Returns:
     An `arg_scope` to use for the inception v3 model.
   """
+  
   with slim.arg_scope(
       [slim.conv2d, slim.fully_connected,
        QConv.conv2d, QFullyConnect.fully_connected],
@@ -99,3 +100,12 @@ def lenet_arg_scope(weight_decay=0.0):
       weights_initializer=tf.truncated_normal_initializer(stddev=0.1),
       activation_fn= tf.nn.relu) as sc:
     return sc
+  """
+  with slim.arg_scope(
+      [slim.conv2d, slim.fully_connected,
+       QConv.conv2d, QFullyConnect.fully_connected],
+      weights_regularizer=slim.l2_regularizer(weight_decay),
+      weights_initializer=tf.constant_initializer(10**-3),
+      activation_fn= tf.nn.relu) as sc:
+    return sc
+  """

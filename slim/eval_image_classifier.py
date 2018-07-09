@@ -27,7 +27,8 @@ import time
 import json
 import os
 
-import utils
+import Quantize.utils
+from misc import utils
 
 from datasets import dataset_factory
 from nets import nets_factory
@@ -135,9 +136,9 @@ def main(_):
     ########################
     # Determine Quantizers #
     ########################
-    intr_q_map=utils.quantizer_map(FLAGS.intr_qmap)
-    extr_q_map=utils.quantizer_map(FLAGS.extr_qmap)
-    weight_q_map=utils.quantizer_map(FLAGS.weight_qmap)
+    intr_q_map=Quantize.utils.quantizer_map(FLAGS.intr_qmap)
+    extr_q_map=Quantize.utils.quantizer_map(FLAGS.extr_qmap)
+    weight_q_map=Quantize.utils.quantizer_map(FLAGS.weight_qmap)
     
     ####################
     # Select the model #
@@ -248,12 +249,18 @@ def main(_):
     weights_list_param_count = utils.get_variables_count_dict('weights')
     biases_list_param_count = utils.get_variables_count_dict('biases')
 
-    # get ops calculating the layerwise and overall sparsity of weights
-    weights_layerwise_sparsity_op, weights_overall_sparsity_op = (
+    # get ops calculating the layerwise and total sparsity of weights
+    weights_layerwise_sparsity_op, weights_total_sparsity_op = (
                 utils.get_sparsity_ops('weights') )
-    biases_layerwise_sparsity_op, biases_overall_sparsity_op = (
+    biases_layerwise_sparsity_op, biases_total_sparsity_op = (
                 utils.get_sparsity_ops('biases') )
 
+    # add ops to summary
+    op = tf.summary.scalar('eval/weights_total_sparsity', weights_total_sparsity_op, collections=[])
+    tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+    op = tf.summary.scalar('eval/biases_total_sparsity', biases_total_sparsity_op, collections=[])
+    tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
+    
     # get ops for activation sparsity
     activation_layerwise_sparsity = {}
     for key in endpoints.keys():
@@ -268,7 +275,7 @@ def main(_):
     # Final ops, used for statistics
     final_op = (list(names_to_values.values()), 
                        weights_layerwise_sparsity_op, biases_layerwise_sparsity_op,
-                       weights_overall_sparsity_op, biases_overall_sparsity_op,
+                       weights_total_sparsity_op, biases_total_sparsity_op,
                        list(activation_layerwise_sparsity.values()) )
     print('Running %s for %d iterations'%(FLAGS.model_name,num_batches))
     start_time_simu = time.time()

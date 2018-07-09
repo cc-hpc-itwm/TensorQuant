@@ -1,12 +1,12 @@
 """
-Test for Quantized RMSProp optimizer.
-A simple net is trained with QRMSProp and tf.train.RMSPropOptimizer. After some iterations, the outputs of both nets are compared. If both outputs are equal, the test is successful.
+Test for Quantized Adagrad optimizer.
+A simple net is trained with QAdagrad and tf.train.AdagradOptimizer. After some iterations, the outputs of both nets are compared. If both outputs are equal, the test is successful.
 """
 
 import tensorflow as tf
 import numpy as np
 from TensorQuant.Quantize import Quantizers
-import QRMSProp
+import QAdagrad
 
 from tensorflow.python.ops import standard_ops
 
@@ -27,13 +27,13 @@ quantizer=Quantizers.NoQuantizer()
 #quantizer=Quantizers.FixedPointQuantizer_nearest(8,4)
 quantization=Quantizers.FixedPointQuantizer_nearest(fixed_size,fixed_prec)
 
-optimizer = QRMSProp.RMSPropOptimizer(0.1,quantizer=quantizer)
+optimizer = QAdagrad.QAdagradOptimizer(0.1,quantizer=quantizer)
 output = quantization.quantize(inputs * 2)
 loss = tf.nn.l2_loss(output-inputs)
 grads_vars = optimizer.compute_gradients(loss)
 train = optimizer.apply_gradients(grads_vars)
 
-gold_optimizer = tf.train.RMSPropOptimizer(0.1)
+gold_optimizer = tf.train.AdagradOptimizer(0.1)
 gold_output = quantization.quantize(gold_inputs * 2)
 gold_loss = tf.nn.l2_loss(gold_output-gold_inputs)
 gold_grads_vars = gold_optimizer.compute_gradients(gold_loss)
@@ -47,8 +47,10 @@ with tf.Session() as sess:
     sess.run(gold_train)
   gold_result=gold_output.eval().flatten()
   result=output.eval().flatten()
-  print(sess.run(output))
-  print(sess.run(gold_output))
+
+#print(gold_result)
+#print(result)
+
 
 failed=False
 for i in range(len(result)):
@@ -56,7 +58,7 @@ for i in range(len(result)):
         failed = True
         break
 
-print('QRMSProp test:')
+print('QAdagrad test:')
 if failed:
     print('---failed!---')
 else:

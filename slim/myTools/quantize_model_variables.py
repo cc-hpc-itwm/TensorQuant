@@ -1,3 +1,10 @@
+"""
+File which loads a model, quantizes all variables and stores them back.
+
+
+Author: Dominik Loroch
+"""
+
 import tensorflow as tf
 import sys, os
 

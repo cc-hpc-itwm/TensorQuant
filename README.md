@@ -14,6 +14,8 @@ Original paper: https://arxiv.org/abs/1710.05758
 
 **Quantize/** - Contains the quantizers and layer factories of the TensorQuant toolbox.
 
+**Optimize/** - Contains custom optimizers.
+
 ### Prerequisites
 
 - [TensorFlow](https://www.tensorflow.org/) 1.0 or higher.

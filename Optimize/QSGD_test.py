@@ -1,3 +1,8 @@
+"""
+Test for Quantized SGD optimizer.
+A simple net is trained with QSGD and tf.train.GradientDescentOptimizer. After some iterations, the outputs of both nets are compared. If both outputs are equal, the test is successful.
+"""
+
 import tensorflow as tf
 import numpy as np
 import Quantizers

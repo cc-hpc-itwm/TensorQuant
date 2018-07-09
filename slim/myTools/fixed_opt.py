@@ -1,5 +1,33 @@
+"""
+Tries to find a layerwise optimum representation of fixed point quantization.
+
+Run from "slim" directory with:
+
+python fixed_opt.py \
+    --checkpoint_path=${TRAIN_DIR} \
+    --dataset_name=${DATASET_NAME} \
+    --dataset_split_name=${DATASET_TEST_NAME} \
+    --dataset_dir=${DATASET_DIR} \
+    --model_name=${MODEL_NAME} \
+    --labels_offset=${LABELS_OFFSET} \
+    --preprocessing_name=${PREPROCESSING_NAME} \
+    --eval_image_size=${IMG_SIZE} \
+    --batch_size=${BATCH_SIZE} \
+    --max_num_batches=${NUM_BATCHES} \
+    --layers_file=${BASE_DIR}/layers.json \
+    --tmp_qmap=${TRAIN_DIR}/tmp_qmap.json \
+    --data_file=${EXP_FILE} \
+    --optimizer_init="nearest,4,2" \
+    --optimizer_mode=${OPTIMIZER_MODE} \
+    --margin=1.0 \
+    --opt_qmap=${TRAIN_DIR}/opt_${OPTIMIZER_MODE}.json
+
+Author: Dominik Loroch
+"""
+
 import tensorflow as tf
-import utils
+import Quantize.utils
+from misc import utils
 import json
 import os
 
@@ -36,21 +64,26 @@ tf.app.flags.DEFINE_string(
     'layers_file', '', 'Location of file containing all the layer IDs.'
     'If empty, no optimization.')
 
+tf.app.flags.DEFINE_integer(
+    'labels_offset', 0,
+    'An offset for the labels in the dataset. This flag is primarily used to '
+    'evaluate the VGG and ResNet architectures which do not use a background '
+    'class for the ImageNet dataset.')
+
+tf.app.flags.DEFINE_string(
+    'preprocessing_name', None, 'The name of the preprocessing to use. If left '
+    'as `None`, then the model_name flag is used.')
+
+tf.app.flags.DEFINE_integer(
+    'eval_image_size', None, 'Eval image size')
+
 tf.app.flags.DEFINE_string(
     'tmp_qmap', 'tmp_qmap.json', 'Location of temporarily generated quantizer map.'
     'This file does not have to exist, it will be generated and it is temporary.')
 
 tf.app.flags.DEFINE_string(
-    'intr_qmap', '', 'Location of intrinsic quantizer map.'
-    '')
-
-tf.app.flags.DEFINE_string(
-    'extr_qmap', '', 'Location of extrinsic quantizer map.'
-    '')
-
-tf.app.flags.DEFINE_string(
-    'weight_qmap', '', 'Location of weight quantizer map.'
-    '')
+    'opt_qmap', 'opt_qmap.json', 'The final optimal quantizer map.'
+    'Contains the results of the quantizer.')
 
 tf.app.flags.DEFINE_string(
     'data_file', 'opt_results.json', 'Location of file with last results.'
@@ -58,6 +91,10 @@ tf.app.flags.DEFINE_string(
 
 tf.app.flags.DEFINE_string(
     'optimizer_init', 'nearest,4,2', 'Starting value for optimizer.'
+    '')
+
+tf.app.flags.DEFINE_string(
+    'optimizer_mode', 'extr', 'quantization of activations ("extr"), weights ("weight"), or both ("extr_weights").'
     '')
 
 tf.app.flags.DEFINE_float(
@@ -72,9 +109,7 @@ TRAIN_DIR=      FLAGS.checkpoint_path # checkpoint directory
 EVAL_DIR=       "/tmp/tf" # directory to dump summaries into
 LAYERS_FILE=    FLAGS.layers_file # available layers
 TMP_QMAP=       FLAGS.tmp_qmap # location of temporary quantizer map
-INTR_QMAP=      FLAGS.intr_qmap # location of intrinsic quantizer map
-EXTR_QMAP=      FLAGS.extr_qmap # location of extrinsic quantizer map
-WEIGHT_QMAP=    FLAGS.weight_qmap # location of weight quantizer map
+OPT_QMAP=       FLAGS.opt_qmap # location of where the final qmap will be saved to
 
 DATASET_DIR= FLAGS.dataset_dir # Where the dataset is saved to.
 DATASET_NAME= FLAGS.dataset_name # Name of the dataset, used by dataset factory
@@ -102,10 +137,16 @@ def run_baseline():
     eval_execution_str+="--dataset_dir=%s "%DATASET_DIR
     eval_execution_str+="--dataset_name=%s "%DATASET_NAME
     eval_execution_str+="--dataset_split_name=%s "%DATASET_SPLIT_NAME
+    eval_execution_str+="--labels_offset=%d "%FLAGS.labels_offset
     # model and batchsize
     eval_execution_str+="--model_name=%s "%MODEL_NAME
     eval_execution_str+="--max_num_batches=%d "%MAX_NUM_BATCHES
     eval_execution_str+="--batch_size=%d "%BATCH_SIZE
+    if FLAGS.preprocessing_name is not None:
+        eval_execution_str+="--preprocessing_name=%s "%FLAGS.preprocessing_name
+    if FLAGS.eval_image_size is not None:
+        eval_execution_str+="--eval_image_size=%d "%FLAGS.eval_image_size
+    # logging
     eval_execution_str+="--output_file=%s "%DATA_FILE
     eval_execution_str+="--comment=\"%s\" "%("type=baseline")
     os.system(eval_execution_str) # call evaluation script
@@ -116,6 +157,7 @@ def run_evaluation(layer, qtype, w, q):
     qmap={layer:"%s,%d,%d"%(qtype, w, q)}
     with open(TMP_QMAP,'w') as hfile:
         json.dump(qmap, hfile)
+    _type = FLAGS.optimizer_mode
 
     # evaluate current setting
     eval_execution_str="python eval_image_classifier.py "
@@ -126,15 +168,25 @@ def run_evaluation(layer, qtype, w, q):
     eval_execution_str+="--dataset_dir=%s "%DATASET_DIR
     eval_execution_str+="--dataset_name=%s "%DATASET_NAME
     eval_execution_str+="--dataset_split_name=%s "%DATASET_SPLIT_NAME
+    eval_execution_str+="--labels_offset=%d "%FLAGS.labels_offset
     # model and batchsize
     eval_execution_str+="--model_name=%s "%MODEL_NAME
     eval_execution_str+="--max_num_batches=%d "%MAX_NUM_BATCHES
     eval_execution_str+="--batch_size=%d "%BATCH_SIZE
+    if FLAGS.preprocessing_name is not None:
+        eval_execution_str+="--preprocessing_name=%s "%FLAGS.preprocessing_name
+    if FLAGS.eval_image_size is not None:
+        eval_execution_str+="--eval_image_size=%d "%FLAGS.eval_image_size
     # evaluation and quantization
     eval_execution_str+="--output_file=%s "%DATA_FILE
-    comment= "type=intrinsic, layer=%s, w=%d, q=%d"%(layer, w, q)
+    comment= "type=%s, layer=%s, w=%d, q=%d"%(_type,layer, w, q)
     eval_execution_str+="--comment=\"%s\" "%comment
-    eval_execution_str+="--intr_qmap=%s "%TMP_QMAP
+    if "intr" in FLAGS.optimizer_mode:
+        eval_execution_str+="--intr_qmap=%s "%TMP_QMAP
+    if "extr" in FLAGS.optimizer_mode:
+        eval_execution_str+="--extr_qmap=%s "%TMP_QMAP
+    if "weight" in FLAGS.optimizer_mode:
+        eval_execution_str+="--weight_qmap=%s "%TMP_QMAP
     os.system(eval_execution_str) # call evaluation script
 
 
@@ -155,7 +207,7 @@ def main(_):
     with open(LAYERS_FILE,'r') as hfile:
         layers = json.load(hfile)
     qmap_template = dict.fromkeys(layers)
-    qtype, qargs = utils.split_quantizer_str(OPTIMIZER_INIT)
+    qtype, qargs = Quantize.utils.split_quantizer_str(OPTIMIZER_INIT)
     # preprocess quantizer settings
     for key in qmap_template:
         qmap_template[key] = {"type":qtype, "w":int(qargs[0]), "q":int(qargs[1]), 
@@ -220,9 +272,9 @@ def main(_):
     # writing optimal settings to file
     qmap = dict.fromkeys(qmap_template.keys())
     for key in qmap.keys():
-        qmap[key] = "%s,%s,%s"%(qmap_template[key]['type'],
-                qmap_template[key]['w'],qmap_template[key]['q'])
-    opt_file = TRAIN_DIR+'/optimal_fixed.json' 
+        qmap[key] = "%s,%d,%d"%(qmap_template[key]['type'],
+                int(qmap_template[key]['w']),int(qmap_template[key]['q']))
+    opt_file = OPT_QMAP
     with open(opt_file,'w') as hfile:
             json.dump(qmap, hfile)
     print("Optimal setup written to %s."%(opt_file))

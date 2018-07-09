@@ -1,5 +1,10 @@
+"""
+Get Values (gradient sparsity + test accuracy) from a tfevent file
+
+Author: Dominik Loroch
+"""
+
 import tensorflow as tf
-# from Quantize import *
 import os
 import matplotlib as mplot
 import matplotlib.pyplot as plt
@@ -26,10 +31,6 @@ FOLDERS= [ PATH+f+'/' for f in NAMES]
 
 var_name='gradient-sparsity'
 #keys = ['total_loss', ]
-
-
-
-
 
 for folder_idx, folder in enumerate(FOLDERS):
     print('Directory %s:'%folder)

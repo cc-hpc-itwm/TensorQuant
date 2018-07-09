@@ -245,10 +245,27 @@ def resnet_arg_scope(weight_decay=0.0001,
       'scale': batch_norm_scale,
       'updates_collections': tf.GraphKeys.UPDATE_OPS,
   }
-
+  """
   with slim.arg_scope(
       [slim.conv2d, QConv.conv2d],
       weights_regularizer=slim.l1_regularizer(weight_decay),
+      weights_initializer=slim.variance_scaling_initializer(),
+      activation_fn=tf.nn.relu,
+      normalizer_fn=slim.batch_norm,
+      normalizer_params=batch_norm_params):
+    with slim.arg_scope([slim.batch_norm, QBatchNorm.batch_norm], **batch_norm_params):
+      # The following implies padding='SAME' for pool1, which makes feature
+      # alignment easier for dense prediction tasks. This is also used in
+      # https://github.com/facebook/fb.resnet.torch. However the accompanying
+      # code of 'Deep Residual Learning for Image Recognition' uses
+      # padding='VALID' for pool1. You can switch to that choice by setting
+      # slim.arg_scope([slim.max_pool2d], padding='VALID').
+      with slim.arg_scope([slim.max_pool2d], padding='SAME') as arg_sc:
+        return arg_sc
+  """
+  with slim.arg_scope(
+      [slim.conv2d, QConv.conv2d],
+      weights_regularizer=slim.l2_regularizer(weight_decay),
       weights_initializer=slim.variance_scaling_initializer(),
       activation_fn=tf.nn.relu,
       normalizer_fn=slim.batch_norm,

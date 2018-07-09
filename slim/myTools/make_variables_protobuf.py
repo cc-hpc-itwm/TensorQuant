@@ -1,3 +1,9 @@
+"""
+Generates a protobuffer of some model, with all weights in it.
+
+Author: Dominik Loroch
+"""
+
 import tensorflow as tf
 from TensorQuant.Quantize import Quantizers
 import json

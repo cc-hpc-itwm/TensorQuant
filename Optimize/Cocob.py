@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+# Modified for TensorQuant
 
 
 '''
 COntinuos COin Betting (COCOB) optimizer
+Intrinsic quantizer is applied to tilde_w and var.
+learning_rate included as dummy parameter.
 '''
 
 from tensorflow.python.framework import ops
@@ -27,14 +30,13 @@ import tensorflow as tf
 
 
 class COCOB(Optimizer):
-    def __init__(self, learning_rate, alpha=100, use_locking=False, name='COCOB', quantizer=None):
+    def __init__(self, learning_rate=None, alpha=100, use_locking=False, name='COCOB', quantizer=None):
         '''
         constructs a new COCOB optimizer
         '''
         super(COCOB, self).__init__(use_locking, name)
         self._alpha = alpha
         self.quantizer=quantizer
-        self.learning_rate=learning_rate # not needed by Cocob
 
     def _create_slots(self, var_list):
         for v in var_list:
@@ -73,9 +75,11 @@ class COCOB(Optimizer):
             grad_norm_sum_update+L_update,self._alpha*L_update)))*(reward_update+L_update)
         if self.quantizer is not None:
             var_update = self.quantizer.quantize(var-tilde_w+new_w)
+            tilde_w_update=self.quantizer.quantize(new_w)
         else:
             var_update = var-tilde_w+new_w
-        tilde_w_update=self.quantizer.quantize(new_w)
+            tilde_w_update=new_w
+        
         
         gradients_sum_update_op = state_ops.assign(gradients_sum, gradients_sum_update)
         grad_norm_sum_update_op = state_ops.assign(grad_norm_sum, grad_norm_sum_update)

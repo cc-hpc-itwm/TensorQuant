@@ -3,8 +3,8 @@
 # Start script from slim/ directory!
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/resnetv1_14-model/baseline
-#rm -r ${TRAIN_DIR}
+TRAIN_DIR=./tmp/resnetv1_14-model/test
+rm -r ${TRAIN_DIR}
 mkdir ${TRAIN_DIR}
 
 #QMAP=${TRAIN_DIR}/QMaps/optimal_sparse.json

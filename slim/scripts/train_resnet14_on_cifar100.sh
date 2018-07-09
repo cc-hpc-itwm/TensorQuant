@@ -3,9 +3,9 @@
 # Start script from slim/ directory!
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/resnetv1_14-model/l1-regularizer
+TRAIN_DIR=./tmp/resnetv1_14-model/test
 #rm -r ${TRAIN_DIR}
-mkdir ${TRAIN_DIR}
+#mkdir ${TRAIN_DIR}
 
 #QMAP=${TRAIN_DIR}/QMaps/optimal_sparse.json
 
@@ -30,13 +30,14 @@ python train_image_classifier.py \
   --labels_offset=0 \
   --preprocessing_name=cifarnet \
   --train_image_size=32 \
-  --max_number_of_steps=450000 \
+  --max_number_of_steps=45000000 \
   --batch_size=32 \
   --save_interval_secs=3600 \
-  --save_summaries_secs=60 \
+  --save_summaries_secs=10 \
   --log_every_n_steps=100 \
-  --optimizer=momentum \
+  --optimizer=sgd \
   --learning_rate=0.1 \
+  --learning_rate_decay_type=fixed \
   --weight_decay=0.00004
 
 # Run evaluation.

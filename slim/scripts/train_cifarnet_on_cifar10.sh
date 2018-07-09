@@ -11,8 +11,8 @@
 
 # Where the checkpoint and logs will be saved to.
 #TRAIN_DIR=./tmp/cifarnet-model/baseline
-TRAIN_DIR=./tmp/cifarnet-model/l1-l2-regularizer
-#rm -r ${TRAIN_DIR}
+TRAIN_DIR=./tmp/cifarnet-model/test
+rm -r ${TRAIN_DIR}
 #mkdir ${TRAIN_DIR}
 
 # Where the dataset is saved to.

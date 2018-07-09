@@ -60,6 +60,7 @@ class RMSPropOptimizer(optimizer.Optimizer):
         computation and memory. Defaults to False.
       name: Optional name prefix for the operations created when applying
         gradients. Defaults to "RMSProp".
+      quantizer: Intrinsic quantizer, applied to new value for variable before it is assigned.
     """
     super(RMSPropOptimizer, self).__init__(use_locking, name)
     self._learning_rate = learning_rate
@@ -93,11 +94,6 @@ class RMSPropOptimizer(optimizer.Optimizer):
                                         name="momentum")
     self._epsilon_tensor = ops.convert_to_tensor(self._epsilon,
                                         name="epsilon")
-    if self.quantizer is not None:
-        self._learning_rate_tensor = self.quantizer.quantize(self._learning_rate_tensor)
-        self._decay_tensor = self.quantizer.quantize(self._decay_tensor)
-        self._momentum_tensor = self.quantizer.quantize(self._momentum_tensor)
-        self._epsilon_tensor = self.quantizer.quantize(self._epsilon_tensor)
 
   def _apply_rmsprop(self,var,
               rms,
@@ -108,20 +104,11 @@ class RMSPropOptimizer(optimizer.Optimizer):
               epsilon_tensor,
               grad,
               quantizer):
-        grad=quantizer.quantize(grad)
-        rms = rms.assign(quantizer.quantize(
-                rms + quantizer.quantize(
-                quantizer.quantize(quantizer.quantize(tf.square(grad)) - rms) * 
-                quantizer.quantize(1 - decay_tensor) )
-              ))
-        mom = mom.assign(quantizer.quantize(
-                quantizer.quantize(mom * momentum_tensor) + 
-                quantizer.quantize(
-                    quantizer.quantize(grad * learning_rate_tensor) / 
-                    quantizer.quantize(tf.sqrt(rms + epsilon_tensor))
-                )
-              ))
-        var = var.assign(quantizer.quantize(var  - mom))
+        #grad=quantizer.quantize(grad)
+        rms = rms.assign( decay_tensor*rms + tf.square(grad)*(1 - decay_tensor) )  
+        mom = mom.assign( ((mom*momentum_tensor)+(grad*learning_rate_tensor)) / 
+                    tf.sqrt(rms + epsilon_tensor) )
+        var = var.assign( quantizer.quantize(var - mom) )
         return var
 
   def _apply_centered_rmsprop(self,var,
@@ -134,27 +121,11 @@ class RMSPropOptimizer(optimizer.Optimizer):
               epsilon_tensor,
               grad,
               quantizer):
-        grad=quantizer.quantize(grad)
-        rms = rms.assign(quantizer.quantize(
-                rms + quantizer.quantize(
-                quantizer.quantize(quantizer.quantize(tf.square(grad)) - rms) * 
-                quantizer.quantize(1 - decay_tensor) )
-              ))
-        mg = mg.assign(quantizer.quantize(
-                mg + 
-                quantizer.quantize(
-                    quantizer.quantize(grad - mg) * 
-                    quantizer.quantize(1 - decay_tensor) 
-                )
-            ))
-        denom = quantizer.quantize(rms - quantizer.quantize(tf.square(mg))) + epsilon_tensor;
-        mom = mom.assign(quantizer.quantize(
-                    quantizer.quantize(mom * momentum_tensor) +
-                    quantizer.quantize( 
-                        quantizer.quantize(grad * learning_rate_tensor) / 
-                        quantizer.quantize(tf.sqrt(denom))
-                    )
-                ))
+        # grad=quantizer.quantize(grad)
+        rms = rms.assign( decay_tensor*rms + tf.square(grad)*(1 - decay_tensor) )  
+        mg = mg.assign( mg * decay_tensor + grad*(1-decay_tensor) ) 
+        denom = tf.sqrt( rms - tf.square(mg) + epsilon_tensor )
+        mom = mom.assign( (mom*momentum_tensor + grad*learning_rate_tensor) / denom )
         var = var.assign(quantizer.quantize(var - mom))
         return var
 
