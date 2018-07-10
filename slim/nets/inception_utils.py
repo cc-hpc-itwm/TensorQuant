@@ -26,12 +26,8 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-import sys
-sys.path.append('/home/loroch/TensorFlow/TensorLib')
-from Quantize import QBatchNorm
-from Quantize import QConv
-from Quantize import QFullyConnect
-from Quantize import Quantizers
+# imports quantized versions of layers, used in slim.arg_scope
+from Quantize import *
 
 slim = tf.contrib.slim
 

@@ -47,9 +47,9 @@ def _round_stochastic_grad(op, grad):
   return [grad]
 
 
-# Kernel-less functions
+# Fixed point functions, python implementation
 # -------------------------------------------------
-
+# for debugging
 def toFixed(fp_number, fixed_size, fixed_prec):
     ''' Turns the elements of a floating point numpy matrix into fixed point equivalents with bitwidth fixed_size and fractional bits fixed_prec.'''
     fixed_max_signed = (2.0**(fixed_size-1)-1)/(2**fixed_prec)  # maximum value of fixed representation

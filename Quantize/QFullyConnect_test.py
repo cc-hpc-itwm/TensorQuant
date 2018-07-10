@@ -1,3 +1,10 @@
+"""
+Test for QFullyConnect implementation.
+Tests the matmul reimplementation against the TensorFlow tensorflow.python.ops.matmul implementation.
+The input is a tensor [batch, width, height, channels] filled with numbers from zero counting up. Weight values are filled with numbers from zero counting up as well.
+Test passes if both implementations have the same output.
+"""
+
 import tensorflow as tf
 import numpy as np
 import Quantizers

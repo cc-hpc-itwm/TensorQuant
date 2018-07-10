@@ -22,21 +22,19 @@ import tensorflow as tf
 
 from nets import inception_utils
 
-from Quantize import QConv
-from Quantize import QFullyConnect
-from Quantize import QAvgPool
-from Quantize import QBatchNorm
+# imports quantized versions of layers, used in slim.arg_scope
+from Quantize import *
 
 slim = tf.contrib.slim
 trunc_normal = lambda stddev: tf.truncated_normal_initializer(0.0, stddev)
 
 
 def inception_v3_base(inputs,
-                      conv2d, max_pool2d, avg_pool2d,
                       final_endpoint='Mixed_7c',
                       min_depth=16,
                       depth_multiplier=1.0,
-                      scope=None):
+                      scope=None,
+                      **kwargs):
   """Inception model from http://arxiv.org/abs/1512.00567.
 
   Constructs an Inception v3 network from inputs to the given final endpoint.
@@ -97,6 +95,10 @@ def inception_v3_base(inputs,
   # end_points will collect relevant activations for external use, for example
   # summaries or losses.
   end_points = {}
+
+  conv2d=kwargs["conv2d"] 
+  max_pool2d=kwargs["max_pool2d"]
+  avg_pool2d=kwargs["avg_pool2d"]
 
   if depth_multiplier <= 0:
     raise ValueError('depth_multiplier is not greater than zero.')
@@ -491,9 +493,8 @@ def inception_v3(inputs,
                          QBatchNorm.batch_norm],
                         is_training=is_training):
       net, end_points = inception_v3_base(
-          inputs, conv2d, max_pool2d, avg_pool2d,
-          scope=scope, min_depth=min_depth,
-          depth_multiplier=depth_multiplier)
+          inputs, scope=scope, min_depth=min_depth,
+          depth_multiplier=depth_multiplier, **kwargs)
 
       # Auxiliary Head logits
       with slim.arg_scope([slim.conv2d, slim.max_pool2d, slim.avg_pool2d,

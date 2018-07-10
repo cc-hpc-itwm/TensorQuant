@@ -40,10 +40,8 @@ from __future__ import print_function
 import collections
 import tensorflow as tf
 
-from Quantize import QBatchNorm
-from Quantize import QConv
-from Quantize import QFullyConnect
-from Quantize import Quantizers
+# imports quantized versions of layers, used in slim.arg_scope
+from Quantize import *
 
 slim = tf.contrib.slim
 

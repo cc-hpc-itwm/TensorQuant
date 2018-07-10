@@ -23,9 +23,9 @@ def generic_factory(layer_function, q_layer_function,
         A function which can be called like a layer
     '''
     def func(*args,**kwargs):
-        try:
+        if "scope" in kwargs.keys():
             name = "/"+kwargs["scope"]
-        except:
+        else:
             name = ''
         layer_ID=tf.get_variable_scope().name + name
         is_quantized=False
@@ -66,11 +66,12 @@ def generic_factory(layer_function, q_layer_function,
             return net
     return func
 
+
 def extr_only_generic_factory(layer_function, intr_q_map = None, extr_q_map=None):
-    ''' Generic function for layer factories, where intrinsic quantization is not possible.
+    ''' Generic function for layer factories, where intrinsic quantization is not possible, because there are no weights.
         
     Args:
-        layer_function: The layer to be applied.
+        layer_function: The layer, ususally a slim-layer.
         intr_q_map: Dictionary containing mapping from layers to quantizers 
                     for intrinsic quantization. Instead of intr. quantization, 
                     extr. is applied.
@@ -87,17 +88,22 @@ def extr_only_generic_factory(layer_function, intr_q_map = None, extr_q_map=None
     return generic_factory(layer_function, layer_function, 
                            intr_q_map=None, extr_q_map=_extr_q_map) 
 
+
+# Returns a factory for Convolution layers
 def conv2d_factory(intr_q_map=None, extr_q_map=None, weight_q_map=None):
     return generic_factory(slim.conv2d, QConv.conv2d, 
                            intr_q_map=intr_q_map, extr_q_map=extr_q_map, 
                            weight_q_map=weight_q_map)    
 
+
+# Returns a factory for Fully Connected layers
 def fully_connected_factory(intr_q_map=None, extr_q_map=None, weight_q_map=None):
     return generic_factory(slim.fully_connected, QFullyConnect.fully_connected, 
                            intr_q_map=intr_q_map, extr_q_map=extr_q_map,
                            weight_q_map=weight_q_map)  
 
 
+# Returns a factory for Max Pooling layers
 def max_pool2d_factory(intr_q_map=None, extr_q_map=None):
     # this layer has no intrinsic quantization.
     # apply extrinsic quantization in either case 
@@ -105,6 +111,7 @@ def max_pool2d_factory(intr_q_map=None, extr_q_map=None):
                            intr_q_map=None, extr_q_map=extr_q_map)  
 
 
+# Returns a factory for Average Pooling layers
 def avg_pool2d_factory(intr_q_map=None, extr_q_map=None):
     return generic_factory(slim.avg_pool2d, QAvgPool.avg_pool2d, 
                            intr_q_map=intr_q_map, extr_q_map=extr_q_map)  

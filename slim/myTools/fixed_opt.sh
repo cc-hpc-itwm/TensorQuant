@@ -91,7 +91,8 @@ python ./myTools/fixed_opt.py \
     --data_file=${EXP_FILE} \
     --optimizer_init="nearest,4,2" \
     --optimizer_mode=${OPTIMIZER_MODE} \
-    --margin=1.0 \
-    --opt_qmap=${TRAIN_DIR}/opt_${OPTIMIZER_MODE}.json
+    --margin=0.9 \
+    --opt_qmap=${TRAIN_DIR}/opt_${OPTIMIZER_MODE}.json \ 
+    --summaries='detailed'
 
 

@@ -1,3 +1,10 @@
+"""
+Test for QAvgPool implementation.
+Tests the avg_pool2d reimplementation against the TensorFlow nn.avg_pool implementation.
+The input to both implementations is a random tensor [batch, width, height, channels].
+Test passes if both implementations have the same output.
+"""
+
 import tensorflow as tf
 import numpy as np
 import Quantizers

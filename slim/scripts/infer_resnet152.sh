@@ -12,7 +12,7 @@ DATASET_NAME=imagenet
 DATASET_DIR=/data/tf
 
 # Run evaluation.
-export CUDA_VISIBLE_DEVICES=0
+#export CUDA_VISIBLE_DEVICES=0
 python eval_image_classifier.py \
   --checkpoint_path=${TRAIN_DIR} \
   --eval_dir=/tmp/tf \
@@ -21,7 +21,6 @@ python eval_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=resnet_v1_152 \
   --labels_offset=1 \
-  --max_num_batches=5 \
-  --batch_size=2 \
+  --max_num_batches=-1 \
+  --batch_size=128
 
-unset CUDA_VISIBLE_DEVICES

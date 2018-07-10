@@ -75,7 +75,7 @@ BATCH_SIZE=128
 
 TRAIN_DIR=$BASE_DIR/${SUB_MODEL}
 
-python sparse_opt.py \
+python ./myTools/sparse_opt.py \
     --checkpoint_path=${TRAIN_DIR} \
     --dataset_name=${DATASET_NAME} \
     --dataset_split_name=${DATASET_TEST_NAME} \
@@ -92,6 +92,7 @@ python sparse_opt.py \
     --optimizer_init="sparse,1" \
     --optimizer_mode=${OPTIMIZER_MODE} \
     --margin=1.0 \
-    --opt_qmap=${TRAIN_DIR}/opt_${OPTIMIZER_MODE}.json
+    --opt_qmap=${TRAIN_DIR}/opt_${OPTIMIZER_MODE}.json \
+    --summaries='detailed'
 
 

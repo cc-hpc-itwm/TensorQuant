@@ -3,7 +3,7 @@
 # Start script from slim/ directory!
 
 # Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/lenet-model/baseline
+TRAIN_DIR=./tmp/lenet-model
 
 # Where the dataset is saved to.
 DATASET_DIR=~/tmp/mnist
@@ -23,9 +23,4 @@ python eval_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=lenet \
   --max_num_batches=-1 \
-  --batch_size=512 \
-  --comment='baseline' \
-  --output_file='./experiment_results/lenet_baseline.json' \
-  --weight_qmap=${TRAIN_DIR}/opt_weight.json \
-#  --extr_qmap=${TRAIN_DIR}/QMaps/weights.json \
-#  --intr_qmap=${TRAIN_DIR}/QMaps/weights.json
+  --batch_size=512 

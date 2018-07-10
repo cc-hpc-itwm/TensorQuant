@@ -38,12 +38,9 @@ import Quantize.utils
 
 slim = tf.contrib.slim
 
-tf.app.flags.DEFINE_string(
-    'master', '', 'The address of the TensorFlow master to use.')
 
 tf.app.flags.DEFINE_string(
-    'train_dir', '/tmp/tfmodel/',
-    'Directory where checkpoints and event logs are written to.')
+    'master', '', 'The address of the TensorFlow master to use.')
 
 tf.app.flags.DEFINE_integer('num_clones', 1,
                             'Number of model clones to deploy.')
@@ -67,6 +64,16 @@ tf.app.flags.DEFINE_integer(
     'The number of threads used to create the batches.')
 
 tf.app.flags.DEFINE_integer(
+    'task', 0, 'Task id of the replica running the training.')
+
+#################
+# Logging Flags #
+#################
+tf.app.flags.DEFINE_string(
+    'train_dir', '/tmp/tfmodel/',
+    'Directory where checkpoints and event logs are written to.')
+
+tf.app.flags.DEFINE_integer(
     'log_every_n_steps', 10,
     'The frequency with which logs are print.')
 
@@ -78,13 +85,9 @@ tf.app.flags.DEFINE_integer(
     'save_interval_secs', 600,
     'The frequency with which the model is saved, in seconds.')
 
-tf.app.flags.DEFINE_integer(
-    'task', 0, 'Task id of the replica running the training.')
-
 ######################
 # Optimization Flags #
 ######################
-
 tf.app.flags.DEFINE_float(
     'weight_decay', 0.00004, 'The weight decay on the model weights.')
 
@@ -137,7 +140,6 @@ tf.app.flags.DEFINE_float(
 #######################
 # Learning Rate Flags #
 #######################
-
 tf.app.flags.DEFINE_string(
     'learning_rate_decay_type',
     'exponential',
@@ -176,7 +178,6 @@ tf.app.flags.DEFINE_float(
 #######################
 # Dataset Flags #
 #######################
-
 tf.app.flags.DEFINE_string(
     'dataset_name', 'imagenet', 'The name of the dataset to load.')
 
@@ -211,7 +212,6 @@ tf.app.flags.DEFINE_integer('max_number_of_steps', None,
 #####################
 # Fine-Tuning Flags #
 #####################
-
 tf.app.flags.DEFINE_string(
     'checkpoint_path', None,
     'The path to a checkpoint from which to fine-tune.')
@@ -230,12 +230,9 @@ tf.app.flags.DEFINE_boolean(
     'ignore_missing_vars', False,
     'When restoring a checkpoint would ignore missing variables.')
 
-FLAGS = tf.app.flags.FLAGS
-
 ######################
 # Quantization Flags #
 ######################
-
 tf.app.flags.DEFINE_string(
     'extr_grad_quantizer', '', 'Extrinsic gradient quantizer.'
     'If "", no quantizer is applied.')
@@ -256,6 +253,8 @@ tf.app.flags.DEFINE_string(
     'weight_qmap', '', 'Location of weight quantizer map.'
     'If empty, no quantizer is applied.')
 
+
+FLAGS = tf.app.flags.FLAGS
 
 
 def _configure_learning_rate(num_samples_per_epoch, global_step):
@@ -312,7 +311,9 @@ def _configure_optimizer(logits, learning_rate, quantizer=None):
   Raises:
     ValueError: if FLAGS.optimizer is not recognized.
   """
-
+  tf.logging.info("Using %s optimizer."%FLAGS.optimizer)
+  if quantizer is not None:
+    tf.logging.info("Using %s as intrinsic quantizer in optimizer."%quantizer)
   if FLAGS.optimizer == 'adadelta':
     optimizer = tf.train.AdadeltaOptimizer(
         learning_rate,
@@ -344,6 +345,7 @@ def _configure_optimizer(logits, learning_rate, quantizer=None):
         initial_accumulator_value=FLAGS.ftrl_initial_accumulator_value,
         l1_regularization_strength=FLAGS.ftrl_l1,
         l2_regularization_strength=FLAGS.ftrl_l2)
+
   elif FLAGS.optimizer == 'momentum':
     optimizer = tf.train.MomentumOptimizer(
         learning_rate,
@@ -375,18 +377,17 @@ def _configure_optimizer(logits, learning_rate, quantizer=None):
     optimizer = Cocob.COCOB(quantizer=quantizer)
 
   elif FLAGS.optimizer == 'lars':
-    #loss = tf.get_collection(tf.GraphKeys.LOSSES)[0]
     optimizer = Lars.Lars(learning_rate, momentum=FLAGS.momentum, quantizer=quantizer)
 
   elif FLAGS.optimizer == 'kfac':
     kfac_layer_collection = Kfac.register_kfac(logits)
-    #optimizer = tf.contrib.kfac.optimizer.KfacOptimizer(
     optimizer = Kfac.KfacOptimizer(
-      learning_rate=learning_rate, #0.0001
+      learning_rate=learning_rate,
       cov_ema_decay=0.95,
       damping=FLAGS.damping,
       layer_collection=kfac_layer_collection,
-      momentum=FLAGS.momentum)
+      momentum=FLAGS.momentum,
+      quantizer=quantizer)
 
   # custom optimizers
   elif FLAGS.optimizer == 'mto':
@@ -428,7 +429,6 @@ def _get_init_fn():
     exclusions = [scope.strip()
                   for scope in FLAGS.checkpoint_exclude_scopes.split(',')]
 
-  # TODO(sguada) variables.filter_variables()
   variables_to_restore = []
   for var in slim.get_model_variables():
     excluded = False
@@ -478,19 +478,20 @@ def main(_):
     raise ValueError('You must supply the dataset directory with --dataset_dir')
 
   tf.logging.set_verbosity(tf.logging.INFO)
+
   with tf.Graph().as_default():
 
     #######################
     # Quantizers          #
     #######################
 
-    if FLAGS.intr_grad_quantizer is not '':
+    if FLAGS.intr_grad_quantizer != '':
         qtype, qargs= Quantize.utils.split_quantizer_str(FLAGS.intr_grad_quantizer)
         intr_grad_quantizer= Quantize.utils.quantizer_selector(qtype, qargs)
     else:
         intr_grad_quantizer= None
 
-    if FLAGS.extr_grad_quantizer is not '':
+    if FLAGS.extr_grad_quantizer != '':
         qtype, qargs= Quantize.utils.split_quantizer_str(FLAGS.extr_grad_quantizer)
         extr_grad_quantizer= Quantize.utils.quantizer_selector(qtype, qargs)
     else:
@@ -524,7 +525,6 @@ def main(_):
     ######################
     # Select the network #
     ######################
-
     network_fn = nets_factory.get_network_fn(
         FLAGS.model_name,
         num_classes=(dataset.num_classes - FLAGS.labels_offset),
@@ -607,7 +607,6 @@ def main(_):
     #############
     # Summaries #
     #############
-
     # Add summaries for end_points.
     logits, end_points = clones[0].outputs
     for end_point in end_points:
@@ -615,6 +614,9 @@ def main(_):
       summaries.add(tf.summary.histogram('activations/' + end_point, x))
       summaries.add(tf.summary.scalar('sparse_activations/' + end_point,
                                       tf.nn.zero_fraction(x)))
+      if x.get_shape().ndims == 4:
+        image = tb_utils.heatmap_activation(x, pad = 1)
+        tf.summary.image('activation/'+end_point, image)
 
     # Add summaries for losses.
     for loss in tf.get_collection(tf.GraphKeys.LOSSES, first_clone_scope):
@@ -647,8 +649,7 @@ def main(_):
                                 tf.nn.zero_fraction(biases_total_sparsity)))
     
     # Add layerwise weight heatmaps
-    for it in range(len(weights_name_list)):
-        name = weights_name_list[it]
+    for it, name in enumerate(weights_name_list):
         weight = weights_list[it]
         if weight.get_shape().ndims == 4:
             image = tb_utils.heatmap_conv(weight, pad = 1)
@@ -715,7 +716,6 @@ def main(_):
     op = tf.summary.scalar(summary_name, gradient_total_sparsity_op, collections=[])
     #op = tf.Print(op, [value], summary_name)
     tf.add_to_collection(tf.GraphKeys.SUMMARIES, op)
-    
 
     # Add gradients to summary
     for gv in clones_gradients:

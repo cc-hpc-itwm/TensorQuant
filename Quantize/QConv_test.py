@@ -1,3 +1,10 @@
+"""
+Test for QConv implementation.
+Tests the convolution reimplementation against the TensorFlow nn.convolution implementation, and the atrous_conv2d reimplementation against nn.atrous_conv2d.
+The input is a tensor [batch, width, height, channels] filled with numbers from zero counting up. Weight values are filled with numbers from zero counting up as well.
+Test passes if reimplementation and TF version have the same output.
+"""
+
 import tensorflow as tf
 import numpy as np
 import Quantizers
@@ -19,14 +26,9 @@ fixed_prec = 8
 
 testdata_scale = 10
 
-#inputs_vals = np.ones((batch_size,input_width,input_height,input_channels)) # batch, width, height, channels
-#inputs_vals = np.tile(np.repeat(np.arange(1,10),input_channels).reshape((3,3,input_channels)),(batch_size,1,1,1))
 inputs_vals = np.arange(input_width*input_height*input_channels*batch_size).reshape(batch_size,input_width,input_height,input_channels)
-#inputs_vals = np.random.normal(size=(batch_size,input_width,input_height,input_channels))*testdata_scale//1
-#print(inputs_vals)
-#filters_vals = np.ones((filter_width,filter_height,input_channels,output_channels)) # width, height, in_channels, out_channels
 filters_vals = np.arange(filter_width*filter_height*input_channels*output_channels).reshape(filter_width,filter_height,input_channels,output_channels)
-#filters_vals = np.random.normal(size=(filter_width,filter_height,input_channels,output_channels))*testdata_scale//1
+
 
 inputs = tf.constant(inputs_vals,dtype=tf.float32)
 filters = tf.constant(filters_vals,dtype=tf.float32)
@@ -53,22 +55,16 @@ results[test_name]['quant'] = QConv.atrous_conv2d(inputs, filters, rate, padding
                                 quantizer=quantizer)
 results[test_name]['gold'] = nn.atrous_conv2d(inputs, filters, rate, padding)
 
-#test_name='conv2d_transpose'
-#results[test_name]={}
-#results[test_name]['quant'] = QConv.conv2d_transpose(inputs, filters, output_shape, rate, 
-#                                padding=padding, 
-#                                quantizer=quantizer)
-#results[test_name]['gold'] = nn.atrous_conv2d(inputs, filters, rate, padding)
 
 with tf.Session() as sess:
     for key in results.keys():
         results[key]['quant']=results[key]['quant'].eval().flatten()
         results[key]['gold']=results[key]['gold'].eval().flatten()
-        print(key)
-        print(results[key]['quant'])
-        print('--------------------------------')
-        print(results[key]['gold'])
-        print('################################')
+        #print(key)
+        #print(results[key]['quant'])
+        #print('--------------------------------')
+        #print(results[key]['gold'])
+        #print('################################')
 
 
 for key in results.keys():

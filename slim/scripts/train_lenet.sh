@@ -11,8 +11,6 @@
 
 # Where the checkpoint and logs will be saved to.
 TRAIN_DIR=./tmp/lenet-model/test
-rm -r ${TRAIN_DIR}
-#mkdir ${TRAIN_DIR}
 
 # Where the dataset is saved to.
 DATASET_DIR=~/tmp/mnist
@@ -22,9 +20,8 @@ DATASET_DIR=~/tmp/mnist
 #  --dataset_name=mnist \
 #  --dataset_dir=${DATASET_DIR}
 
-
 # Run training.
-export CUDA_VISIBLE_DEVICES=0
+#export CUDA_VISIBLE_DEVICES=0
 python train_image_classifier.py \
   --train_dir=${TRAIN_DIR} \
   --dataset_name=mnist \
@@ -37,10 +34,9 @@ python train_image_classifier.py \
   --learning_rate=0.01 \
   --weight_decay=0.00004 \
   --save_interval_secs=3600 \
-  --save_summaries_secs=3600 \
+  --save_summaries_secs=5 \
   --log_every_n_steps=100 \
-  --optimizer=lars \
-  --intr_grad_quantizer=logarithmic \
+  --optimizer=sgd 
 
 
 # Run evaluation.

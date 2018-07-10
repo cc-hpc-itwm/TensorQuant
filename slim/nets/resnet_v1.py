@@ -58,10 +58,9 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from Quantize import QBatchNorm
-from Quantize import QConv
-from Quantize import QFullyConnect
-from Quantize import Quantizers
+# imports quantized versions of layers, used in slim.arg_scope
+from Quantize import *
+
 from nets import resnet_utils
 
 
@@ -241,8 +240,7 @@ def resnet_v1_14(inputs,
   root_block = [16, 3, 1] # num filters, filter size, stride
   return resnet_v1(inputs, blocks, num_classes, is_training,
                    global_pool=global_pool, output_stride=output_stride,
-                   include_root_block=True, root_block=root_block, reuse=reuse, scope=scope,
-                   **kwargs)
+                   include_root_block=True, root_block=root_block, reuse=reuse, scope=scope, **kwargs)
 resnet_v1_14.default_image_size = resnet_v1.default_image_size
 
 def resnet_v1_20(inputs,
@@ -265,8 +263,7 @@ def resnet_v1_20(inputs,
   root_block = [16, 3, 1] # num filters, filter size, stride
   return resnet_v1(inputs, blocks, num_classes, is_training,
                    global_pool=global_pool, output_stride=output_stride,
-                   include_root_block=True, root_block=root_block, reuse=reuse, scope=scope,
-                   **kwargs)
+                   include_root_block=True, root_block=root_block, reuse=reuse, scope=scope, **kwargs)
 resnet_v1_20.default_image_size = resnet_v1.default_image_size
 
 

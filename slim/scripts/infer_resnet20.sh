@@ -2,23 +2,20 @@
 #
 # Start script from slim/ directory!
 
-# Where the checkpoint and logs will be saved to.
-TRAIN_DIR=./tmp/resnetv1_20-model/cifar100
-#rm -r ${TRAIN_DIR}
-mkdir ${TRAIN_DIR}
+# which dataset to use
+DATASET_NAME=$1
 
-#QMAP=${TRAIN_DIR}/QMaps/optimal_sparse.json
+# Choose Parameters according to used dataset
+BASE_DIR=./tmp/resnetv1_20-model
 
-# Name of Dataset
-#DATASET_NAME=imagenet
-DATASET_NAME=cifar100
-
-# Where the dataset is saved to.
-#DATASET_DIR=/data/tf
-DATASET_DIR=~/tmp/cifar100
+if [ "$DATASET_NAME" == "cifar100" ]; then
+    TRAIN_DIR=${BASE_DIR}/cifar100
+    DATASET_DIR=~/tmp/cifar100
+fi
 
 
-export CUDA_VISIBLE_DEVICES=0
+
+#export CUDA_VISIBLE_DEVICES=0
 
 # Run evaluation.
 python eval_image_classifier.py \
@@ -34,4 +31,3 @@ python eval_image_classifier.py \
   --max_num_batches=-1 \
   --batch_size=128
 
-unset CUDA_VISIBLE_DEVICES

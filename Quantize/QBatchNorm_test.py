@@ -1,3 +1,11 @@
+"""
+Test for QBatchNorm implementation.
+Tests the batch_normalization reimplementation against the TensorFlow nn.batch_normalization implementation.
+The input to both implementations is a random tensor [batch, width, height, channels].
+Means and Variances are the same for both implementations.
+Test passes if both implementations have the same output.
+"""
+
 import tensorflow as tf
 import numpy as np
 import sys
@@ -30,8 +38,8 @@ with tf.Session() as sess:
   #print(sess.run(output))
   #print('------------')
   #print(sess.run(gold_output))
-  print( 'mean: %f'%(sess.run(means)) )
-  print( 'variance: %f'%(sess.run(variances)) )
+  #print( 'mean: %f'%(sess.run(means)) )
+  #print( 'variance: %f'%(sess.run(variances)) )
   pass
 
 failed=False

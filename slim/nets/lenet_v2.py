@@ -20,8 +20,8 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from Quantize import QConv
-from Quantize import QFullyConnect
+# imports quantized versions of layers, used in slim.arg_scope
+from Quantize import *
 
 slim = tf.contrib.slim
 

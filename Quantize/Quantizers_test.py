@@ -1,3 +1,10 @@
+"""
+Test for Quantizers.
+Tests the log2, sparste and halffp kernels against a python implementation.
+Inputs are random tensors.
+The test is successful, if results are the same or considered to be the same (see FP16 case).
+"""
+
 import tensorflow as tf
 import numpy as np
 import Quantizers
@@ -59,15 +66,6 @@ output_halffp = quantizer_halffp.quantize(inputs)
 gold_output_halffp = halffp(inputs)
 
 with tf.Session() as sess:
-  '''
-  print('input:')
-  print(toHex(sess.run(inputs)))
-  print('quantized:')
-  print(toHex(sess.run(output_halffp)))
-  print('gold quantized:')
-  print(toHex(sess.run(gold_output_halffp)))
-  '''
-  
   result_log=np.sum(
             np.absolute(gold_output_log.eval().flatten()-output_log.eval().flatten()))
   result_sparse=np.sum(
@@ -82,28 +80,14 @@ with tf.Session() as sess:
          for x in gold_output_halffp.eval().flatten()]) 
   output_halffp = np.array(
         [struct.unpack('<I', struct.pack('<f', x))[0] 
-         for x in output_halffp.eval().flatten()])  
+         for x in output_halffp.eval().flatten()])
+  # test passes if all numbers are the same, or if there is a certain difference between two numbers.
   result_halffp = gold_output_halffp-output_halffp
   result_halffp = np.absolute( 
                 np.sum( (result_halffp==0).astype(np.int32) 
                         + (result_halffp==8192).astype(np.int32) )
                 - result_halffp.size)
 
-  #result_halffp=np.sum(np.absolute(gold_output_halffp.eval().flatten()-output_halffp.eval().flatten()))
-
-  '''
-  start=time.time()
-  for i in range(100000):
-    output_halffp.eval()
-  runtime = time.time()-start
-  print('kernel-version time: %fs'%runtime)
-
-  start=time.time()
-  for i in range(100000):
-    gold_output_halffp.eval()
-  runtime = time.time()-start
-  print('tf-version time: %fs'%runtime)
-  '''
 
 print('LogQuantizer test:')
 check(result_log)

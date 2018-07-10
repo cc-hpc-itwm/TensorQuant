@@ -22,20 +22,17 @@ import tensorflow as tf
 
 from nets import inception_utils
 
-from Quantize import QConv
-from Quantize import QFullyConnect
-from Quantize import QBatchNorm
-from Quantize import Factories
-from Quantize import Quantizers
+# imports quantized versions of layers, used in slim.arg_scope
+from Quantize import *
 
 slim = tf.contrib.slim
 trunc_normal = lambda stddev: tf.truncated_normal_initializer(0.0, stddev)
 
 
 def inception_v1_base(inputs,
-                      conv2d, max_pool2d,
                       final_endpoint='Mixed_5c',
-                      scope='InceptionV1'):
+                      scope='InceptionV1',
+                      **kwargs):
   """Defines the Inception V1 base architecture.
 
   This architecture is defined in:
@@ -59,10 +56,12 @@ def inception_v1_base(inputs,
   Raises:
     ValueError: if final_endpoint is not set to one of the predefined values.
   """
+  conv2d=kwargs["conv2d"] 
+  max_pool2d=kwargs["max_pool2d"] 
   end_points = {}
   with tf.variable_scope(scope, 'InceptionV1', [inputs]):
     with slim.arg_scope(
-        [slim.conv2d],
+        [slim.conv2d, QConv.conv2d],
         weights_initializer=trunc_normal(0.01)):
       with slim.arg_scope([slim.conv2d, slim.max_pool2d,
                            QConv.conv2d],
@@ -302,8 +301,7 @@ def inception_v1(inputs,
     with slim.arg_scope([slim.batch_norm, slim.dropout,
                          QBatchNorm.batch_norm],
                         is_training=is_training):
-      net, end_points = inception_v1_base(inputs, conv2d, max_pool2d,
-                                         scope=scope)
+      net, end_points = inception_v1_base(inputs, scope=scope, **kwargs)
       with tf.variable_scope('Logits'):
         net = avg_pool2d(net, [7, 7], stride=1, scope='AvgPool_0a_7x7')
         net = slim.dropout(net,

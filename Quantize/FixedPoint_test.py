@@ -1,3 +1,10 @@
+"""
+Test for FixedPoint implementation.
+Tests the round down kernel implementation against a python implementation.
+The input to both implementations is a random tensor [batch, width, height, channels].
+Test passes if both implementations have the same output.
+"""
+
 import tensorflow as tf
 import numpy as np
 import Quantizers
@@ -29,9 +36,8 @@ fixed_prec = 0
 testdata_scale=1
 
 
-inputs_vals = np.random.normal(size=(batch_size,input_width,input_height,input_channels))*testdata_scale
+inputs_vals = np.random.normal(size=(batch_size, input_width, input_height, input_channels)) * testdata_scale
 
-#inputs_vals = np.linspace(-1,1,20)
 
 inputs = tf.constant(inputs_vals,dtype=tf.float32)
 
@@ -42,11 +48,10 @@ gold_output = FixedPointOp(inputs,fixed_size,fixed_prec)
 with tf.Session() as sess:
   gold_result=gold_output.eval().flatten()
   result=output.eval().flatten()
-  print('input:')
-  print(sess.run(inputs))
-  print('quantized input:')
-  print(sess.run(output))
-  pass
+  #print('input:')
+  #print(sess.run(inputs))
+  #print('quantized input:')
+  #print(sess.run(output))
 
 failed=False
 for i in range(len(result)):

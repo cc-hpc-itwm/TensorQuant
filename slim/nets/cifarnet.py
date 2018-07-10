@@ -18,8 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from Quantize import QConv
-from Quantize import QFullyConnect
+# imports quantized versions of layers, used in slim.arg_scope
+from Quantize import *
 
 import tensorflow as tf
 

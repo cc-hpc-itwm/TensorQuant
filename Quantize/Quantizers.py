@@ -4,6 +4,8 @@ import tensorflow as tf
 
 class Quantizer_if():
     """Interface for quantizer classes"""
+    def __str__(self):
+        return self.__class__.__name__
     def quantize(self,tensor):
         raise NotImplementedError
 
