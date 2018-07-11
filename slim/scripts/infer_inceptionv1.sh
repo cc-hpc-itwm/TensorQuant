@@ -21,6 +21,6 @@ python eval_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=inception_v1 \
   --batch_size=32 \
-  --max_num_batches=1
+  --max_num_batches=-1
   
 
