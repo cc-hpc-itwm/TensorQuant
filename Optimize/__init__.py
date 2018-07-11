@@ -1,1 +1,1 @@
-__all__=["Cocob", "Kfac", "Lars", "MeanThreshold", "QRMSProp", "QSGD", "QAdagrad"]
+__all__=["Cocob", "Kfac", "Lars", "QRMSProp", "QSGD", "QAdagrad"]

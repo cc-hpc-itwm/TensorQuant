@@ -29,8 +29,6 @@ from preprocessing import preprocessing_factory
 
 from Quantize import Quantizers
 from Optimize import *
-from Optimize import NewMethod01
-from Optimize import NewMethod02
 
 from misc import utils
 from misc import tb_utils
@@ -389,17 +387,6 @@ def _configure_optimizer(logits, learning_rate, quantizer=None):
       momentum=FLAGS.momentum,
       quantizer=quantizer)
 
-  # custom optimizers
-  elif FLAGS.optimizer == 'mto':
-    optimizer = MeanThreshold.MeanThresholdOptimizer(learning_rate)
-  elif FLAGS.optimizer == 'nm01':
-    optimizer = NewMethod01.NM01(learning_rate, quantizer=quantizer)
-  elif FLAGS.optimizer == 'nm02':
-    optimizer = NewMethod02.NM02(learning_rate,
-        decay=FLAGS.rmsprop_decay,
-        momentum=FLAGS.momentum,
-        epsilon=FLAGS.opt_epsilon,
-        quantizer=quantizer)
   else:
     raise ValueError('Optimizer [%s] was not recognized', FLAGS.optimizer)
   return optimizer
