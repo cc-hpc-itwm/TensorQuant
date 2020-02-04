@@ -1,5 +1,5 @@
 # Quantize
-This file contains the TensorQuant toolbox.
+This directory contains the TensorQuant core mechanics.
 
 ## Structure
 
@@ -7,33 +7,44 @@ This file contains the TensorQuant toolbox.
 
 **utils.py** - Utilities to generate quantization maps.
 
-**Factories.py** - This utility is used to produce layers based on whether intrinsic, extrinsic or weight quantization should be applied.
+**override.py** - defines the active overrides and the global quantization dictionaries.
 
 **FixedPoint.py** - Python wrappers for the fixed point quantization kernels.
 
 **QuantKernelWrapper.py** - Python wrappers for non-fixed point quantization kernels.
 
-**QLayer.py** - Reimplementation of a slim layer (can be quantized intrinsically).
+**QLayer.py** - Defines a generic Keras Layer with enabled quantization.
 
-**test_all.sh** - Run a test for quantizer and layer implementations.
-
-
-## Test
-
-You can run any 'xx_test.py' script to verify if the reimplemented layers work properly, or start 'test_all.sh' to run all tests in a row. The message '+++passed!+++' will be displayed if successful. The the scripts for details on the tests.
+**override_functions.py** Contains the "generic_keras_override" function, which decides which layers are to be hijacked.
 
 ## Remarks
 
-### Factories.py
-- 'generic_facotry' allows for intrinsic quantization. For layers which do not need intrinsic quantization and which have no weights, the 'extr_only_generic_factory' can be used.
-- For each new layer type, a factory (a wrapper for 'generic_factory' or 'extr_only_generic_factory') must be declared. The wrapper passes the reimplemented and original slim layer to the generic function.
-- Notice that the wrapper can perform additional operations, if necessary.
-- The factories return a function which always has the same interface as 'layer_function' (i.e. the quantizer is already passed as an argument).
-
-### FixedPoint.py
-- There are also some functions without C-Kernels, which are used for verification.
-
 ### Quantizers.py
-- Every Quantizer implements the quantizer interface defined by 'Quantizer_if'. It takes a tensor as an argument and returns a quantized tensor.
-- In most cases, the 'quantize' method calls the corresponding python wrapper of the kernel.
+- Every Quantizer implements the quantizer interface defined by 'Quantizer_if'. It takes a tensor as an argument and returns a quantized tensor. Use this interface to add additional quantizers.
 - There is a 'NoQuantizer' quantizer, which simply returns the unquantized tensor. This quantizer is used for debugging.
+- Most of the quantizers are implemented with Tensorflow layers. The C-Code kernels can be called (but often not used) with the "C_quantize" method. In fact, if the compilation of the C-code kernels should not work, one can work around that step.
+- It is possible to define custom gradients for the Quantizers ("def grad(dy):"). The gradients in the TensorQuant quantizers are initially straight through, but can be modified.
+
+### utils.py
+- the function "quantizer_map" can be used to generate quantizer maps. The function takes either a .json file, or a dictionary with following structure:
+```json
+{
+    "Layer_name" : "Quantizer_shortcut_string"
+}
+```
+The quantizer shortcut strings are defined in the same file in the "quantizer_selector" function (e.g. "nearest,32,16" would create a fixed point quantization with 32bits and 16bit fractional part).
+The layer names do not require to match the real names entirely, but every layer which contains a matching substring will be quantized with the given quantizer. This allows to quantize entire blocks of layers. As of writing this readme, there is an issue with the "tf.name_scope" feature together with Keras layers, so it is not a reliable way to structure your network.
+
+### override.py
+- The available overrides do not cover all Keras layers. However, the overrides can be easily extended for other Keras layers with:
+``` python
+keras_SomeLayer = tf.keras.layers.SomeLayer
+keras_SomeLayer_override = generic_keras_override(keras_SomeLayer)
+# override the Keras layer
+tf.keras.layers.SomeLayer = keras_SomeLayer_override
+# optional: override for aliases
+tf.keras.layers.SomeLayer_alias = keras_conv2d_override
+```
+- the "intr_q_map" has no effect in this version of TensorQuant
+- the "extr_q_map" (for activations) and "weight_q_map" (for weights and biases) dictionaries can be written with a dictionary defining the desired quantization setup.
+

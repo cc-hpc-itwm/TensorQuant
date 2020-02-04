@@ -8,108 +8,94 @@ Original paper: https://arxiv.org/abs/1710.05758
 
 ### Structure
 
-**slim/** - Contains a modified version of the [Slim](https://github.com/tensorflow/models/tree/master/research/slim) model library.
+**Examples/** - Contains examples on how to use TensorQuant.
 
 **Kernels/** - Contains C-files of the kernels used in the quantizers.
 
-**Quantize/** - Contains the quantizers and layer factories of the TensorQuant toolbox.
-
-**Optimize/** - Contains custom optimizers.
+**Quantize/** - Contains the quantizers and override mechanic of the TensorQuant toolbox.
 
 ### Prerequisites
 
-- [TensorFlow](https://www.tensorflow.org/) 1.7
-- [Python](https://www.python.org/) 2.7 / 3.6
+- [TensorFlow](https://www.tensorflow.org/) 2.0 (Keras)
+- [Python](https://www.python.org/) 3.6
 
 ### Installing
 
-Add the TensorQuant directory to your PYTHONPATH environment variable.
-```
+Add the TensorQuant directory to your PYTHONPATH environment variable, so it can be found by your project.
+``` shell
 export PYTHONPATH=${PYTHONPATH}:<path-to-TensorQuant>
 ```
 
-Compile the Kernels within the Kernels/ directory. A makefile is provided (run 'make all'). There might be issues with the -D_GLIBCXX_USE_CXX11_ABI=0 flag. See [this link](https://www.tensorflow.org/extend/adding_an_op) (under 'Build the op library') for more help on this topic.
+Compile the Kernels in the "Kernels/" directory. A makefile is provided (run 'make all'). There might be issues with the -D_GLIBCXX_USE_CXX11_ABI=0 flag. See [this link](https://www.tensorflow.org/extend/adding_an_op) (under 'Build the op library') for more help on this topic.
 
-If you are planning to use slim/, make sure the datasets (e.g. MNIST and ImageNet) are already installed and set up (see [link](https://github.com/tensorflow/models/tree/master/research/slim) for help). The original slim model library comes with a set of pre-trained models, which can be used with TensorQuant. Make sure to download the checkpoint files from [here](https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models). Put a file called 'checkpoint' into the same folder as the model .ckpt file with the content
+## Quantizing a Neural Network
+
+TensorQuant temporarily hijacks the Keras layer identifiers in order to inline additional ops for the Quantization.
+The override needs to be applied before the model is build. Therefore, TensorQuant cannot be used if the model is loaded from a container file (i.e. no calls to the "tf.keras.layers" classes).
+In order to apply the overrides, you must import the "override" module from TensorQuant in your main file:
+
+``` python
+from TensorQuant.Quantize import override
 ```
-model_checkpoint_path: "model-name.ckpt"
+
+The layers for quantization are selected via a Dictionary, which maps layer names to quantizers. The available quantizers are in "TensorQuant.Quantize.Quantizers".
+
+For example, you can provide a dictionary in your python code like this:
+``` python
+override.extr_q_map={"Conv1" : tensorQuant.Quantize.Quantizers.FixedPointQuantizer_nearest(16,8)}
 ```
-or TensorFlow will not be able to restore the model parameters from the specified file.
 
-## Running Networks with the Slim Framework
-
-You can use the scripts in the slim/scripts/ directory as a starting point. Make sure the directories in the scripts are set up correctly. 'TRAIN_DIR' should point to the directory with the .ckpt file and 'DATASET_DIR' to the dataset. Run a script (e.g. GoogLeNet on ImageNet) from the slim/ directory with
+Alternatively, you can provide a .json file
+```json
+{
+    "Layer_name" : "Quantizer_shortcut_string"
+}
 ```
-./scripts/infer_inceptionv1.sh &
+The quantizer shortcut strings are defined in the same file in the "quantizer_selector" function (e.g. "nearest,16,8" would create a fixed point quantization with 32bits and 16bit fractional part).
+
+The layer names do not require to match the real names entirely, but every layer which contains a matching substring will be quantized with the given quantizer. This allows to quantize entire blocks of layers. As of writing this readme, there is an issue with the "tf.name_scope" feature together with Keras layers, so it is not a reliable way to structure your network.
+
+Load the json file with
+```python
+from TensorQuant.Quantize import utils
+
+override.extr_q_map = utils.quantizer_map(json_filename)
 ```
-to see if the toolbox is set up properly.
+The available Quantizer shortcut strings are in the file "TensorQuant.Quantize.utils.quantizer_selector".
 
-See the READMEs in the subfolders to see further information on the toolbox.
+Currently, there is "extr_q_map" for layer activations and "weight_q_map" for the layer weights. "intr_q_map" for intrinsic quantization is not available in this version of TensorQuant.
+Set these dictionaries before the model is build (i.e. before calling tensorflow.keras.layers classes). If you do not want to use quantization, set the quantizer map to "None" (default).
 
-## Using Quantization Outside of the Slim Framework
+There are no changes required in your Keras model. However, the override mechanic is very sensitive to the exact identifiers of the classes, so it might be necessary to use the full identifiers (e.g. "tf.keras.layers.Conv2D"), or to create aliases (e.g. "Conv2D = tf.keras.layers.Conv2D"), as shown in the LeNet example.
+``` python
+# Introducing an alias for a Keras layer
+Convolution2D = tf.keras.layers.Convolution2D
 
-The quickest way to use quantization in any topology outside of the provided slim/ example is to define a file (e.g. called tq_layers.py) like this:
+model = tf.keras.models.Sequential()
 
+model.add(Convolution2D(
+    filters = 20,
+    kernel_size = (5, 5),
+    padding = "same",
+    input_shape = (28, 28, 1),
+    activation="relu",
+    name="Conv1"))
 ```
-# tq_layers.py
+
+## Overriding Layers
+The number of initially available overrides does not span the complete set of available Keras layers. Any Keras layer can be hijacked, like in this example:
+``` python
 import tensorflow as tf
-import TensorQuant as tq
-import os
+from TensorQuant.Quantize.override_functions import generic_keras_override
 
-from TensorQuant.Quantize import *
-from TensorQuant.Quantize.Factories import generic_factory
-from TensorQuant.Quantize.Factories import extr_only_generic_factory
-from TensorQuant.slim.utils import *
-from local_settings import *
-
-
-# quantization maps passed to factories, layer call functions for use in model files
-#-----------------------------------------------------------------
-intr_file='intr_map.json'
-extr_file='extr_map.json'
-weights_file = 'weights_map.json'
-
-
-if os.path.exists(intr_file):
-    intr_q_map = quantizer_map(intr_file)
-else:
-    intr_q_map = None
-
-if os.path.exists(extr_file):
-    extr_q_map = quantizer_map(extr_file)
-else:
-    extr_q_map = None
-
-if os.path.exists(weights_file):
-    weight_q_map = quantizer_map(weights_file)
-else:
-    weight_q_map = None
-
-
-#conv2d = tf.contrib.layers.conv2d
-conv2d = generic_factory(tf.contrib.layers.conv2d, QConv.conv2d, 
-                           intr_q_map=intr_q_map, extr_q_map=extr_q_map, 
-                           weight_q_map=weight_q_map)
-
-add = extr_only_generic_factory(tf.add, 
-                           intr_q_map=intr_q_map, extr_q_map=extr_q_map)
-
-max_pool2d = extr_only_generic_factory(tf.contrib.layers.max_pool2d, 
-                           intr_q_map=intr_q_map, extr_q_map=extr_q_map)
-
-
-resize_bilinear = extr_only_generic_factory(tf.image.resize_bilinear, 
-                           intr_q_map=intr_q_map, extr_q_map=extr_q_map)
+keras_conv2d = tf.keras.layers.Conv2D
+keras_conv2d_override = generic_keras_override(keras_conv2d)
+# the override happens in this line
+tf.keras.layers.Conv2D = keras_conv2d_override
+# optionally, override any aliases
+tf.keras.layers.Convolution2D = keras_conv2d_override
 ```
-
-You can then add
-
-```
-from tq_layers import *
-```
-
-to your model file. Change the layer function names in the model file like in the slim framework example and your model will be quantized with the quantizer map .json-files as defined in tq_layers.py. It is not necessary to add kwargs to your model header like in the slim framework, since the layer factories are loaded with the import. Notice that your model will always be quantized with the same quantizer map files, if they are present.
-
+The overrides must be done before the model is build. The available overrides are in "TensorQuant.Quantize.override". Additional overrides can be placed in that file as well.
 
 ## Authors
 

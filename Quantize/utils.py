@@ -6,9 +6,7 @@
 import json
 import tensorflow as tf
 
-from Quantize import Quantizers
-
-slim = tf.contrib.slim
+from TensorQuant.Quantize import Quantizers
 
 def quantizer_selector(selector_str, arg_list):
     """ Builds and returns the specified quantizer.
@@ -39,6 +37,18 @@ def quantizer_selector(selector_str, arg_list):
         quantizer = Quantizers.LogarithmicQuantizer()
     elif selector_str=="fp16":
         quantizer = Quantizers.HalffpQuantizer()
+    elif selector_str=="binary":
+        if len(arg_list)==0:
+            quantizer = Quantizers.BinaryQuantizer( 1 )
+        if len(arg_list)==1:
+            quantizer = Quantizers.BinaryQuantizer( float(arg_list[0]) )
+    elif selector_str=="ternary":
+        if len(arg_list)==0:
+            quantizer = Quantizers.TernaryQuantizer( 1 )
+        if len(arg_list)==1:
+            quantizer = Quantizers.TernaryQuantizer( float(arg_list[0]) )
+        elif len(arg_list)==2:
+            quantizer = Quantizers.TernaryQuantizer( float(arg_list[0]), False, float(arg_list[1]))
     else:
         raise ValueError('Quantizer %s not recognized!'%(selector_str))
     return quantizer
@@ -62,25 +72,50 @@ def split_quantizer_str(quantizer_str):
     return (quantizer_type, args)
 
 
-def quantizer_map(qmap_file):
+def get_quantizer(q_str):
+    """ Get a quantizer instance based on string.
+        If quantizer is empty string or None, None is returned.
+    Args:
+        q_str: quantizer string to be interpreted.
+    Returns:
+        Quantizer object or None.
+    """
+    if q_str == "":
+        q_str=None
+    if q_str is None:
+        return None
+    qtype, qargs= split_quantizer_str(q_str)
+    quantizer = quantizer_selector(qtype, qargs)
+    return quantizer
+
+
+def quantizer_map(qmap):
     """ Creates a Quantizer map. All specified layers share the same quantizer type.
     Args:
-        qmap_file: Location of the .json file, which specifies the mapping.
+        qmap: Location of the .json file, which specifies the mapping, or a dictionary with the same content.
     Returns:
         A dictionary containing the mapping from layers to quantizers.
     """
-    # load dictionary from json file.
-    # open file and parse data
-    if qmap_file is '':
+    if qmap is None:
         return None
-    with open(qmap_file,'r') as hfile:
-        qmap = json.load(hfile)
+    elif type(qmap) == str:
+        # load dictionary from json file.
+        # open file and parse data
+        if qmap is '':
+            return None
+        try:
+            with open(qmap,'r') as hfile:
+                qmap = json.load(hfile)
+        except IOError:
+            qmap={"":qmap}
 
     # change strings in qmap into quantizer objects
     for key in qmap:
       if type(qmap[key]) is str:
-        # get the quantizer parameters
-        quantizer_type, arg_list = split_quantizer_str(qmap[key])
         # generate quantizer object
-        qmap[key]=quantizer_selector(quantizer_type, arg_list)
+        quantizer=get_quantizer(qmap[key])
+        #if quantizer is None:
+        #    raise ValueError("Invalid quantizer \""+qmap[key]+"\" for layer \""+key+"\"")
+        qmap[key]=quantizer
+
     return qmap
